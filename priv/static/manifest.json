@@ -1,0 +1,55 @@
+{
+  "name": "FeedMe",
+  "short_name": "FeedMe",
+  "description": "AI-powered household management for grocery shopping, pantry inventory, and meal planning",
+  "start_url": "/households",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "shopping", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Shopping List",
+      "short_name": "Shop",
+      "description": "View your shopping list",
+      "url": "/households",
+      "icons": [{"src": "/images/icon-shopping.png", "sizes": "96x96"}]
+    },
+    {
+      "name": "Pantry",
+      "short_name": "Pantry",
+      "description": "Check your pantry",
+      "url": "/households",
+      "icons": [{"src": "/images/icon-pantry.png", "sizes": "96x96"}]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/screenshot-1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/images/screenshot-mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
+}
