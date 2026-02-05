@@ -54,9 +54,16 @@ defmodule FeedMe.AI.Tools do
           properties: %{
             name: %{type: "string", description: "Name of the item"},
             quantity: %{type: "number", description: "Quantity of the item"},
-            unit: %{type: "string", description: "Unit of measurement (e.g., 'lbs', 'oz', 'cups')"},
+            unit: %{
+              type: "string",
+              description: "Unit of measurement (e.g., 'lbs', 'oz', 'cups')"
+            },
             category: %{type: "string", description: "Category name (e.g., 'Produce', 'Dairy')"},
-            expiration_date: %{type: "string", description: "Expiration date in YYYY-MM-DD format"}
+            shelf_life_days: %{
+              type: "integer",
+              description:
+                "Estimated shelf life in days from today. Always provide this. Examples: bananas=5, bread=7, milk=10, eggs=21, chicken=2, canned goods=730, fresh herbs=7, cheese=30."
+            }
           },
           required: ["name"]
         }
@@ -94,7 +101,10 @@ defmodule FeedMe.AI.Tools do
           type: "object",
           properties: %{
             query: %{type: "string", description: "Search term for recipe title or description"},
-            tag: %{type: "string", description: "Filter by tag (e.g., 'dinner', 'quick', 'vegetarian')"},
+            tag: %{
+              type: "string",
+              description: "Filter by tag (e.g., 'dinner', 'quick', 'vegetarian')"
+            },
             favorites_only: %{type: "boolean", description: "Only return favorite recipes"}
           }
         }
@@ -107,7 +117,8 @@ defmodule FeedMe.AI.Tools do
       type: "function",
       function: %{
         name: "get_taste_profiles",
-        description: "Get the household's taste profile including dietary restrictions, allergies, and preferences",
+        description:
+          "Get the household's taste profile including dietary restrictions, allergies, and preferences",
         parameters: %{
           type: "object",
           properties: %{}
@@ -127,7 +138,10 @@ defmodule FeedMe.AI.Tools do
           properties: %{
             search: %{type: "string", description: "Optional search term to filter pantry items"},
             category: %{type: "string", description: "Optional category to filter by"},
-            low_stock_only: %{type: "boolean", description: "Only return items that need restocking"}
+            low_stock_only: %{
+              type: "boolean",
+              description: "Only return items that need restocking"
+            }
           }
         }
       }
@@ -157,7 +171,10 @@ defmodule FeedMe.AI.Tools do
         parameters: %{
           type: "object",
           properties: %{
-            use_pantry_items: %{type: "boolean", description: "Prioritize recipes using pantry items"},
+            use_pantry_items: %{
+              type: "boolean",
+              description: "Prioritize recipes using pantry items"
+            },
             max_missing: %{type: "integer", description: "Maximum number of missing ingredients"}
           }
         }
@@ -170,13 +187,15 @@ defmodule FeedMe.AI.Tools do
       type: "function",
       function: %{
         name: "search_web",
-        description: "Search the web for recipes, cooking techniques, ingredient substitutions, food information, or any other culinary knowledge not in the household's recipe book",
+        description:
+          "Search the web for recipes, cooking techniques, ingredient substitutions, food information, or any other culinary knowledge not in the household's recipe book",
         parameters: %{
           type: "object",
           properties: %{
             query: %{
               type: "string",
-              description: "The search query - be specific and include relevant context (e.g., 'authentic Italian carbonara recipe' or 'substitute for buttermilk in baking')"
+              description:
+                "The search query - be specific and include relevant context (e.g., 'authentic Italian carbonara recipe' or 'substitute for buttermilk in baking')"
             }
           },
           required: ["query"]
@@ -190,7 +209,8 @@ defmodule FeedMe.AI.Tools do
       type: "function",
       function: %{
         name: "add_recipe",
-        description: "Add a new recipe to the household's recipe book. Use this when the user wants to save a recipe you found or know from your training.",
+        description:
+          "Add a new recipe to the household's recipe book. Use this when the user wants to save a recipe you found or know from your training.",
         parameters: %{
           type: "object",
           properties: %{
@@ -205,8 +225,14 @@ defmodule FeedMe.AI.Tools do
                 properties: %{
                   name: %{type: "string", description: "Ingredient name"},
                   quantity: %{type: "number", description: "Amount needed"},
-                  unit: %{type: "string", description: "Unit of measurement (e.g., 'cups', 'tbsp', 'oz')"},
-                  notes: %{type: "string", description: "Optional notes (e.g., 'diced', 'room temperature')"},
+                  unit: %{
+                    type: "string",
+                    description: "Unit of measurement (e.g., 'cups', 'tbsp', 'oz')"
+                  },
+                  notes: %{
+                    type: "string",
+                    description: "Optional notes (e.g., 'diced', 'room temperature')"
+                  },
                   optional: %{type: "boolean", description: "Whether this ingredient is optional"}
                 },
                 required: ["name"]
@@ -215,12 +241,20 @@ defmodule FeedMe.AI.Tools do
             prep_time_minutes: %{type: "integer", description: "Preparation time in minutes"},
             cook_time_minutes: %{type: "integer", description: "Cooking time in minutes"},
             servings: %{type: "integer", description: "Number of servings"},
-            source_url: %{type: "string", description: "URL where the recipe was found (if applicable)"},
-            source_name: %{type: "string", description: "Name of the source (e.g., 'New York Times Cooking', 'Grandma's cookbook')"},
+            source_url: %{
+              type: "string",
+              description: "URL where the recipe was found (if applicable)"
+            },
+            source_name: %{
+              type: "string",
+              description:
+                "Name of the source (e.g., 'New York Times Cooking', 'Grandma's cookbook')"
+            },
             tags: %{
               type: "array",
               items: %{type: "string"},
-              description: "Tags for categorization (e.g., 'dinner', 'vegetarian', 'quick', 'italian')"
+              description:
+                "Tags for categorization (e.g., 'dinner', 'vegetarian', 'quick', 'italian')"
             }
           },
           required: ["title", "instructions", "ingredients"]
@@ -241,18 +275,49 @@ defmodule FeedMe.AI.Tools do
         end
       end
 
+    today = today_for_household(household_id)
+
+    expiration_date =
+      case args["shelf_life_days"] do
+        days when is_integer(days) and days > 0 ->
+          Date.add(today, days)
+
+        days when is_float(days) and days > 0 ->
+          Date.add(today, round(days))
+
+        days when is_binary(days) ->
+          case Integer.parse(days) do
+            {d, _} when d > 0 -> Date.add(today, d)
+            _ -> nil
+          end
+
+        _ ->
+          nil
+      end
+
     attrs = %{
       name: args["name"],
       quantity: args["quantity"] && Decimal.new("#{args["quantity"]}"),
       unit: args["unit"],
       category_id: category_id,
       household_id: household_id,
-      expiration_date: parse_date(args["expiration_date"])
+      expiration_date: expiration_date
     }
 
     case Pantry.create_item(attrs, user) do
       {:ok, item} ->
-        {:ok, "Added #{item.name} to pantry" <> if(item.quantity, do: " (#{item.quantity} #{item.unit || "units"})", else: "")}
+        result =
+          "Added #{item.name} to pantry" <>
+            if(item.quantity, do: " (#{item.quantity} #{item.unit || "units"})", else: "")
+
+        result =
+          if item.expiration_date do
+            result <> ", expires #{item.expiration_date}"
+          else
+            result
+          end
+
+        {:ok, result}
 
       {:error, changeset} ->
         {:error, "Failed to add item: #{inspect(changeset.errors)}"}
@@ -337,7 +402,8 @@ defmodule FeedMe.AI.Tools do
             do: "\n- Favorites: #{Enum.join(profile.favorites, ", ")}",
             else: ""
 
-        {:ok, "Taste Profile Summary: #{summary}#{restrictions}#{allergies}#{dislikes}#{favorites}"}
+        {:ok,
+         "Taste Profile Summary: #{summary}#{restrictions}#{allergies}#{dislikes}#{favorites}"}
 
       {:error, _} ->
         {:ok, "No taste profile set up yet."}
@@ -370,7 +436,11 @@ defmodule FeedMe.AI.Tools do
         items
         |> Enum.take(15)
         |> Enum.map(fn item ->
-          qty = if item.quantity, do: " (#{Decimal.to_string(item.quantity)} #{item.unit || ""})", else: ""
+          qty =
+            if item.quantity,
+              do: " (#{Decimal.to_string(item.quantity)} #{item.unit || ""})",
+              else: ""
+
           low = if Pantry.needs_restock?(item), do: " ⚠️ LOW", else: ""
           "- #{item.name}#{qty}#{low}"
         end)
@@ -453,7 +523,8 @@ defmodule FeedMe.AI.Tools do
           messages = [
             %{
               role: :system,
-              content: "You are a helpful culinary assistant. Provide concise, accurate information about recipes, cooking techniques, and food. Include specific details like ingredients, measurements, and steps when relevant. Keep responses focused and practical."
+              content:
+                "You are a helpful culinary assistant. Provide concise, accurate information about recipes, cooking techniques, and food. Include specific details like ingredients, measurements, and steps when relevant. Keep responses focused and practical."
             },
             %{
               role: :user,
@@ -481,17 +552,19 @@ defmodule FeedMe.AI.Tools do
 
   # Helpers
 
+  defp today_for_household(household_id) do
+    household = FeedMe.Households.get_household(household_id)
+    tz = (household && household.timezone) || "America/Los_Angeles"
+
+    case DateTime.now(tz) do
+      {:ok, dt} -> DateTime.to_date(dt)
+      _ -> Date.utc_today()
+    end
+  end
+
   defp maybe_add_opt(opts, _key, nil), do: opts
   defp maybe_add_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
-  defp parse_date(nil), do: nil
-
-  defp parse_date(date_str) when is_binary(date_str) do
-    case Date.from_iso8601(date_str) do
-      {:ok, date} -> date
-      _ -> nil
-    end
-  end
 
   defp execute_add_recipe(args, %{household_id: household_id, user: user}) do
     # Build recipe attributes
@@ -534,7 +607,8 @@ defmodule FeedMe.AI.Tools do
         time_info = format_time_info(args["prep_time_minutes"], args["cook_time_minutes"])
         servings_info = if args["servings"], do: " • #{args["servings"]} servings", else: ""
 
-        {:ok, "Added recipe \"#{recipe.title}\" with #{ingredient_count} ingredients#{time_info}#{servings_info}"}
+        {:ok,
+         "Added recipe \"#{recipe.title}\" with #{ingredient_count} ingredients#{time_info}#{servings_info}"}
 
       {:error, changeset} ->
         {:error, "Failed to add recipe: #{format_changeset_errors(changeset)}"}

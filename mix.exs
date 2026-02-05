@@ -75,7 +75,9 @@ defmodule FeedMe.MixProject do
       # Code quality
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       # Environment variables from .env
-      {:dotenvy, "~> 0.8", only: [:dev, :test]}
+      {:dotenvy, "~> 0.8", only: [:dev, :test]},
+      # Timezone database
+      {:tz, "~> 0.28"}
     ]
   end
 

@@ -7,6 +7,7 @@ defmodule FeedMe.Households.Household do
   schema "households" do
     field :name, :string
     field :selected_model, :string, default: "anthropic/claude-3.5-sonnet"
+    field :timezone, :string, default: "America/Los_Angeles"
 
     has_many :memberships, FeedMe.Households.Membership
     has_many :users, through: [:memberships, :user]
@@ -18,7 +19,7 @@ defmodule FeedMe.Households.Household do
   @doc false
   def changeset(household, attrs) do
     household
-    |> cast(attrs, [:name, :selected_model])
+    |> cast(attrs, [:name, :selected_model, :timezone])
     |> validate_required([:name])
     |> validate_length(:name, min: 1, max: 100)
   end

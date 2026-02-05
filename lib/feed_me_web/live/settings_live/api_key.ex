@@ -136,6 +136,21 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
     end
   end
 
+  def handle_event("save_timezone", %{"timezone" => timezone}, socket) do
+    household = socket.assigns.household
+
+    case Households.update_household(household, %{timezone: timezone}) do
+      {:ok, updated_household} ->
+        {:noreply,
+         socket
+         |> assign(:household, updated_household)
+         |> put_flash(:info, "Timezone updated to #{timezone}")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to update timezone")}
+    end
+  end
+
   def handle_event("refresh_models", _params, socket) do
     socket = assign(socket, :loading_models, true)
     models = load_models(socket.assigns.household.id)
@@ -218,8 +233,10 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
               <div class="flex items-center justify-between">
                 <div>
                   <h3 class="text-sm font-medium text-primary">Active AI Model</h3>
-                  <p class="text-xl font-semibold mt-1"><%= get_model_display_name(@household.selected_model, @models) %></p>
-                  <p class="text-sm text-base-content/60 font-mono"><%= @household.selected_model %></p>
+                  <p class="text-xl font-semibold mt-1">
+                    {get_model_display_name(@household.selected_model, @models)}
+                  </p>
+                  <p class="text-sm text-base-content/60 font-mono">{@household.selected_model}</p>
                 </div>
                 <.icon name="hero-cpu-chip" class="h-10 w-10 text-primary" />
               </div>
@@ -242,11 +259,11 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
               <div class="mt-4 p-4 bg-base-200 rounded-lg flex items-center justify-between">
                 <div>
                   <p class="font-medium">Current Key</p>
-                  <p class="text-sm text-base-content/70 font-mono"><%= @api_key.key_hint %></p>
+                  <p class="text-sm text-base-content/70 font-mono">{@api_key.key_hint}</p>
                   <p class="text-xs text-base-content/50">
-                    Added <%= Calendar.strftime(@api_key.inserted_at, "%b %d, %Y") %>
+                    Added {Calendar.strftime(@api_key.inserted_at, "%b %d, %Y")}
                     <%= if @api_key.last_used_at do %>
-                      · Last used <%= Calendar.strftime(@api_key.last_used_at, "%b %d, %Y") %>
+                      · Last used {Calendar.strftime(@api_key.last_used_at, "%b %d, %Y")}
                     <% end %>
                   </p>
                 </div>
@@ -267,7 +284,7 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
               <div class="form-control">
                 <label class="label">
                   <span class="label-text">
-                    <%= if @api_key, do: "Replace API Key", else: "API Key" %>
+                    {if @api_key, do: "Replace API Key", else: "API Key"}
                   </span>
                 </label>
                 <input
@@ -281,10 +298,9 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
               <div class="mt-4">
                 <button type="submit" class="btn btn-primary" disabled={@validating}>
                   <%= if @validating do %>
-                    <span class="loading loading-spinner loading-sm"></span>
-                    Validating...
+                    <span class="loading loading-spinner loading-sm"></span> Validating...
                   <% else %>
-                    <%= if @api_key, do: "Update Key", else: "Save Key" %>
+                    {if @api_key, do: "Update Key", else: "Save Key"}
                   <% end %>
                 </button>
               </div>
@@ -297,7 +313,9 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
             <div class="card-body">
               <h3 class="card-title">How to get an API key</h3>
               <ol class="list-decimal list-inside space-y-2 text-sm">
-                <li>Go to <a href="https://openrouter.ai" target="_blank" class="link">openrouter.ai</a></li>
+                <li>
+                  Go to <a href="https://openrouter.ai" target="_blank" class="link">openrouter.ai</a>
+                </li>
                 <li>Create an account or sign in</li>
                 <li>Add credits to your account (starts at $5)</li>
                 <li>Go to Keys and create a new API key</li>
@@ -312,7 +330,11 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
             <div class="card-body">
               <div class="flex items-center justify-between">
                 <h3 class="card-title">Change AI Model</h3>
-                <button phx-click="refresh_models" class="btn btn-ghost btn-sm" disabled={@loading_models}>
+                <button
+                  phx-click="refresh_models"
+                  class="btn btn-ghost btn-sm"
+                  disabled={@loading_models}
+                >
                   <%= if @loading_models do %>
                     <span class="loading loading-spinner loading-sm"></span>
                   <% else %>
@@ -323,7 +345,8 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
               </div>
               <p class="text-sm text-base-content/70">
                 All models below support both <span class="badge badge-success badge-xs">Tools</span>
-                and <span class="badge badge-info badge-xs">Vision</span> for the best FeedMe experience.
+                and <span class="badge badge-info badge-xs">Vision</span>
+                for the best FeedMe experience.
               </p>
 
               <div class="mt-4">
@@ -369,29 +392,34 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
                       <div class="flex items-start justify-between gap-2">
                         <div class="flex-1 min-w-0">
                           <div class="flex items-center gap-2">
-                            <span class="font-medium truncate"><%= model.name %></span>
+                            <span class="font-medium truncate">{model.name}</span>
                             <%= if @household.selected_model == model.id do %>
-                              <.icon name="hero-check-circle" class="h-5 w-5 text-primary flex-shrink-0" />
+                              <.icon
+                                name="hero-check-circle"
+                                class="h-5 w-5 text-primary flex-shrink-0"
+                              />
                             <% end %>
                           </div>
-                          <div class="text-xs text-base-content/50 font-mono truncate"><%= model.id %></div>
+                          <div class="text-xs text-base-content/50 font-mono truncate">
+                            {model.id}
+                          </div>
                         </div>
                         <%= if input_price && output_price do %>
                           <div class="text-right flex-shrink-0">
                             <div class="text-xs font-medium">
                               <span class="text-base-content/70">In:</span>
-                              <span class="text-success"><%= input_price %></span>
+                              <span class="text-success">{input_price}</span>
                             </div>
                             <div class="text-xs font-medium">
                               <span class="text-base-content/70">Out:</span>
-                              <span class="text-warning"><%= output_price %></span>
+                              <span class="text-warning">{output_price}</span>
                             </div>
                           </div>
                         <% end %>
                       </div>
                       <%= if model.context_length do %>
                         <div class="text-xs text-base-content/50 mt-1">
-                          Context: <%= format_number(model.context_length) %> tokens
+                          Context: {format_number(model.context_length)} tokens
                         </div>
                       <% end %>
                     </div>
@@ -399,7 +427,7 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
                 </div>
 
                 <div class="mt-4 text-sm text-base-content/50">
-                  Showing <%= length(@filtered_models) %> of <%= length(@models) %> models with Tools + Vision
+                  Showing {length(@filtered_models)} of {length(@models)} models with Tools + Vision
                 </div>
               <% end %>
             </div>
@@ -407,15 +435,148 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
         <% end %>
       </div>
 
+      <div class="card bg-base-100 border border-base-200">
+        <div class="card-body">
+          <h3 class="card-title">Household Timezone</h3>
+          <p class="text-sm text-base-content/70">
+            Set your household's timezone. This is used for expiration date calculations
+            when adding items to your pantry.
+          </p>
+          <form phx-submit="save_timezone" class="mt-4">
+            <div class="form-control">
+              <select name="timezone" class="select select-bordered w-full">
+                <optgroup label="Common US Timezones">
+                  <%= for tz <- common_us_timezones() do %>
+                    <option value={tz} selected={@household.timezone == tz}>{tz}</option>
+                  <% end %>
+                </optgroup>
+                <%= for {region, zones} <- grouped_timezones() do %>
+                  <optgroup label={region}>
+                    <%= for tz <- zones do %>
+                      <option value={tz} selected={@household.timezone == tz}>{tz}</option>
+                    <% end %>
+                  </optgroup>
+                <% end %>
+              </select>
+            </div>
+            <div class="mt-4">
+              <button type="submit" class="btn btn-primary">Save Timezone</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <.back navigate={~p"/households/#{@household.id}"}>Back to household</.back>
     </div>
     """
   end
 
+  defp common_us_timezones do
+    [
+      "America/New_York",
+      "America/Chicago",
+      "America/Denver",
+      "America/Los_Angeles",
+      "America/Anchorage",
+      "Pacific/Honolulu"
+    ]
+  end
+
+  defp grouped_timezones do
+    common = MapSet.new(common_us_timezones())
+
+    all_timezones()
+    |> Enum.reject(&MapSet.member?(common, &1))
+    |> Enum.group_by(fn tz -> tz |> String.split("/") |> hd() end)
+    |> Enum.sort_by(fn {region, _} -> region end)
+  end
+
+  defp all_timezones do
+    [
+      # Africa
+      "Africa/Cairo",
+      "Africa/Casablanca",
+      "Africa/Johannesburg",
+      "Africa/Lagos",
+      "Africa/Nairobi",
+      # Americas
+      "America/Anchorage",
+      "America/Argentina/Buenos_Aires",
+      "America/Bogota",
+      "America/Caracas",
+      "America/Chicago",
+      "America/Denver",
+      "America/Edmonton",
+      "America/Halifax",
+      "America/Lima",
+      "America/Los_Angeles",
+      "America/Mexico_City",
+      "America/New_York",
+      "America/Phoenix",
+      "America/Santiago",
+      "America/Sao_Paulo",
+      "America/Toronto",
+      "America/Vancouver",
+      # Asia
+      "Asia/Bangkok",
+      "Asia/Dubai",
+      "Asia/Ho_Chi_Minh",
+      "Asia/Hong_Kong",
+      "Asia/Jakarta",
+      "Asia/Jerusalem",
+      "Asia/Kolkata",
+      "Asia/Manila",
+      "Asia/Seoul",
+      "Asia/Shanghai",
+      "Asia/Singapore",
+      "Asia/Taipei",
+      "Asia/Tokyo",
+      # Australia
+      "Australia/Adelaide",
+      "Australia/Brisbane",
+      "Australia/Darwin",
+      "Australia/Melbourne",
+      "Australia/Perth",
+      "Australia/Sydney",
+      # Europe
+      "Europe/Amsterdam",
+      "Europe/Athens",
+      "Europe/Berlin",
+      "Europe/Brussels",
+      "Europe/Dublin",
+      "Europe/Helsinki",
+      "Europe/Istanbul",
+      "Europe/Lisbon",
+      "Europe/London",
+      "Europe/Madrid",
+      "Europe/Moscow",
+      "Europe/Paris",
+      "Europe/Rome",
+      "Europe/Stockholm",
+      "Europe/Vienna",
+      "Europe/Warsaw",
+      "Europe/Zurich",
+      # Pacific
+      "Pacific/Auckland",
+      "Pacific/Fiji",
+      "Pacific/Guam",
+      "Pacific/Honolulu"
+    ]
+  end
+
   defp get_model_display_name(model_id, models) do
     case Enum.find(models, fn m -> m.id == model_id end) do
-      nil -> model_id |> String.split("/") |> List.last() |> String.replace("-", " ") |> String.split() |> Enum.map(&String.capitalize/1) |> Enum.join(" ")
-      model -> model.name
+      nil ->
+        model_id
+        |> String.split("/")
+        |> List.last()
+        |> String.replace("-", " ")
+        |> String.split()
+        |> Enum.map(&String.capitalize/1)
+        |> Enum.join(" ")
+
+      model ->
+        model.name
     end
   end
 end
