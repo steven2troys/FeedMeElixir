@@ -7,9 +7,11 @@ defmodule FeedMe.Repo.Migrations.CreateShoppingLists do
       add :id, :binary_id, primary_key: true
       add :name, :string, null: false
       add :is_main, :boolean, default: false
-      add :status, :string, default: "active"  # active, completed, archived
+      # active, completed, archived
+      add :status, :string, default: "active"
 
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
 
       timestamps(type: :utc_datetime)
     end
@@ -29,7 +31,9 @@ defmodule FeedMe.Repo.Migrations.CreateShoppingLists do
       add :notes, :string
       add :sort_order, :integer, default: 0
 
-      add :shopping_list_id, references(:shopping_lists, type: :binary_id, on_delete: :delete_all), null: false
+      add :shopping_list_id,
+          references(:shopping_lists, type: :binary_id, on_delete: :delete_all), null: false
+
       add :pantry_item_id, references(:pantry_items, type: :binary_id, on_delete: :nilify_all)
       add :category_id, references(:pantry_categories, type: :binary_id, on_delete: :nilify_all)
       add :added_by_id, references(:users, type: :binary_id, on_delete: :nilify_all)
@@ -48,8 +52,11 @@ defmodule FeedMe.Repo.Migrations.CreateShoppingLists do
       add :id, :binary_id, primary_key: true
       add :sort_order, :integer, default: 0
 
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
-      add :category_id, references(:pantry_categories, type: :binary_id, on_delete: :delete_all), null: false
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
+
+      add :category_id, references(:pantry_categories, type: :binary_id, on_delete: :delete_all),
+        null: false
 
       timestamps(type: :utc_datetime)
     end

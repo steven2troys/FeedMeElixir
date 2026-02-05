@@ -31,7 +31,9 @@ defmodule FeedMe.Shopping do
   def get_or_create_main_list(household_id) do
     case get_main_list(household_id) do
       nil ->
-        {:ok, list} = create_list(%{name: "Shopping List", is_main: true, household_id: household_id})
+        {:ok, list} =
+          create_list(%{name: "Shopping List", is_main: true, household_id: household_id})
+
         list
 
       list ->
@@ -149,7 +151,8 @@ defmodule FeedMe.Shopping do
   @doc """
   Gets an item by ID.
   """
-  def get_item(id), do: Repo.get(Item, id) |> Repo.preload([:category, :pantry_item, :shopping_list])
+  def get_item(id),
+    do: Repo.get(Item, id) |> Repo.preload([:category, :pantry_item, :shopping_list])
 
   @doc """
   Creates an item.
@@ -334,7 +337,9 @@ defmodule FeedMe.Shopping do
       |> Repo.all()
 
     Enum.each(items, fn item ->
-      Pantry.add_to_item(item.pantry_item, item.quantity, user, reason: "Added from shopping list")
+      Pantry.add_to_item(item.pantry_item, item.quantity, user,
+        reason: "Added from shopping list"
+      )
     end)
 
     # Clear checked items

@@ -12,7 +12,9 @@ defmodule FeedMe.Repo.Migrations.CreateProfilesAndPantry do
       add :notes, :text
 
       add :user_id, references(:users, type: :binary_id, on_delete: :delete_all), null: false
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
 
       timestamps(type: :utc_datetime)
     end
@@ -28,7 +30,8 @@ defmodule FeedMe.Repo.Migrations.CreateProfilesAndPantry do
       add :sort_order, :integer, default: 0
       add :icon, :string
 
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
 
       timestamps(type: :utc_datetime)
     end
@@ -49,7 +52,9 @@ defmodule FeedMe.Repo.Migrations.CreateProfilesAndPantry do
       add :notes, :text
       add :barcode, :string
 
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :category_id, references(:pantry_categories, type: :binary_id, on_delete: :nilify_all)
 
       timestamps(type: :utc_datetime)
@@ -63,14 +68,17 @@ defmodule FeedMe.Repo.Migrations.CreateProfilesAndPantry do
     # Pantry Transactions - audit trail for changes
     create table(:pantry_transactions, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :action, :string, null: false  # add, remove, adjust, use
+      # add, remove, adjust, use
+      add :action, :string, null: false
       add :quantity_change, :decimal, null: false
       add :quantity_before, :decimal
       add :quantity_after, :decimal
       add :reason, :string
       add :notes, :text
 
-      add :pantry_item_id, references(:pantry_items, type: :binary_id, on_delete: :delete_all), null: false
+      add :pantry_item_id, references(:pantry_items, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :user_id, references(:users, type: :binary_id, on_delete: :nilify_all)
 
       timestamps(type: :utc_datetime, updated_at: false)

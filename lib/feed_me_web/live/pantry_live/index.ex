@@ -25,28 +25,8 @@ defmodule FeedMeWeb.PantryLive.Index do
   end
 
   @impl true
-  def handle_params(params, _url, socket) do
-    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
-  end
-
-  defp apply_action(socket, :index, _params) do
-    socket
-    |> assign(:page_title, "Pantry")
-    |> assign(:item, nil)
-  end
-
-  defp apply_action(socket, :new, _params) do
-    socket
-    |> assign(:page_title, "New Item")
-    |> assign(:item, %Item{household_id: socket.assigns.household.id})
-  end
-
-  defp apply_action(socket, :edit, %{"id" => id}) do
-    item = Pantry.get_item(id, socket.assigns.household.id)
-
-    socket
-    |> assign(:page_title, "Edit Item")
-    |> assign(:item, item)
+  def handle_params(_params, _url, socket) do
+    {:noreply, socket}
   end
 
   @impl true
@@ -95,6 +75,17 @@ defmodule FeedMeWeb.PantryLive.Index do
      |> assign(:items, items)}
   end
 
+  def handle_event("toggle_stock", %{"id" => id}, socket) do
+    item = Pantry.get_item(id, socket.assigns.household.id)
+
+    if item do
+      {:ok, _} = Pantry.update_item(item, %{always_in_stock: !item.always_in_stock})
+      {:noreply, assign(socket, :items, Pantry.list_items(socket.assigns.household.id))}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_event("quick_adjust", %{"id" => id, "change" => change}, socket) do
     item = Pantry.get_item(id, socket.assigns.household.id)
     user = socket.assigns.current_scope.user
@@ -136,13 +127,13 @@ defmodule FeedMeWeb.PantryLive.Index do
     <div class="mx-auto max-w-4xl">
       <.header>
         Pantry
-        <:subtitle><%= @household.name %></:subtitle>
+        <:subtitle>{@household.name}</:subtitle>
         <:actions>
-          <.link navigate={~p"/households/#{@household.id}/pantry/categories"} class="btn btn-ghost btn-sm">
+          <.link
+            navigate={~p"/households/#{@household.id}/pantry/categories"}
+            class="btn btn-ghost btn-sm"
+          >
             <.icon name="hero-tag" class="size-4" /> Categories
-          </.link>
-          <.link patch={~p"/households/#{@household.id}/pantry/new"}>
-            <.button>Add Item</.button>
           </.link>
         </:actions>
       </.header>
@@ -166,7 +157,7 @@ defmodule FeedMeWeb.PantryLive.Index do
               <option value="">All Categories</option>
               <%= for category <- @categories do %>
                 <option value={category.id} selected={@filter_category == category.id}>
-                  <%= category.name %>
+                  {category.name}
                 </option>
               <% end %>
             </select>
@@ -179,9 +170,9 @@ defmodule FeedMeWeb.PantryLive.Index do
           <div class="text-center py-12 bg-base-200 rounded-lg">
             <.icon name="hero-archive-box" class="size-12 mx-auto text-base-content/50" />
             <p class="mt-2 text-base-content/70">Your pantry is empty.</p>
-            <.link patch={~p"/households/#{@household.id}/pantry/new"} class="btn btn-primary mt-4">
-              Add your first item
-            </.link>
+            <p class="mt-2 text-base-content/50">
+              Items are added automatically from your shopping lists.
+            </p>
           </div>
         <% else %>
           <div class="space-y-2">
@@ -189,24 +180,36 @@ defmodule FeedMeWeb.PantryLive.Index do
               <div class="card bg-base-100 shadow-sm border border-base-200">
                 <div class="card-body p-4 flex-row items-center justify-between">
                   <div class="flex-1">
-                    <.link navigate={~p"/households/#{@household.id}/pantry/#{item.id}"} class="font-medium hover:text-primary">
-                      <%= item.name %>
+                    <.link
+                      navigate={~p"/households/#{@household.id}/pantry/#{item.id}"}
+                      class="font-medium hover:text-primary"
+                    >
+                      {item.name}
                     </.link>
                     <div class="text-sm text-base-content/70 flex items-center gap-2">
                       <%= if item.category do %>
-                        <span class="badge badge-sm"><%= item.category.name %></span>
+                        <span class="badge badge-sm">{item.category.name}</span>
                       <% end %>
                       <%= if item.expiration_date do %>
                         <span class={[
                           Item.expired?(item) && "text-error",
                           Item.expiring_soon?(item, 7) && !Item.expired?(item) && "text-warning"
                         ]}>
-                          Exp: <%= item.expiration_date %>
+                          Exp: {item.expiration_date}
                         </span>
                       <% end %>
-                      <%= if item.always_in_stock do %>
-                        <span class="badge badge-xs badge-info">Auto-restock</span>
-                      <% end %>
+                      <button
+                        phx-click="toggle_stock"
+                        phx-value-id={item.id}
+                        class={[
+                          "badge badge-xs cursor-pointer transition-colors",
+                          item.always_in_stock && "badge-info",
+                          not item.always_in_stock && "badge-ghost opacity-50 hover:opacity-100"
+                        ]}
+                        title={if item.always_in_stock, do: "Click to disable keep-in-stock", else: "Click to keep in stock"}
+                      >
+                        {if item.always_in_stock, do: "Keep in stock", else: "Keep in stock"}
+                      </button>
                     </div>
                   </div>
                   <div class="flex items-center gap-2">
@@ -219,7 +222,7 @@ defmodule FeedMeWeb.PantryLive.Index do
                       <.icon name="hero-minus" class="size-4" />
                     </button>
                     <span class="font-mono min-w-[4rem] text-center">
-                      <%= Decimal.to_string(item.quantity) %><%= if item.unit, do: " #{item.unit}" %>
+                      {if item.quantity, do: Decimal.to_string(item.quantity), else: "—"}{if item.unit, do: " #{item.unit}"}
                     </span>
                     <button
                       phx-click="quick_adjust"
@@ -229,28 +232,14 @@ defmodule FeedMeWeb.PantryLive.Index do
                     >
                       <.icon name="hero-plus" class="size-4" />
                     </button>
-                    <div class="dropdown dropdown-end">
-                      <div tabindex="0" role="button" class="btn btn-sm btn-ghost">
-                        <.icon name="hero-ellipsis-vertical" class="size-4" />
-                      </div>
-                      <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-32">
-                        <li>
-                          <.link patch={~p"/households/#{@household.id}/pantry/#{item.id}/edit"}>
-                            Edit
-                          </.link>
-                        </li>
-                        <li>
-                          <button
-                            phx-click="delete"
-                            phx-value-id={item.id}
-                            data-confirm="Are you sure you want to delete this item?"
-                            class="text-error"
-                          >
-                            Delete
-                          </button>
-                        </li>
-                      </ul>
-                    </div>
+                    <button
+                      phx-click="delete"
+                      phx-value-id={item.id}
+                      data-confirm="Are you sure you want to delete this item?"
+                      class="btn btn-sm btn-ghost text-error"
+                    >
+                      <.icon name="hero-trash" class="size-4" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -260,24 +249,6 @@ defmodule FeedMeWeb.PantryLive.Index do
       </div>
 
       <.back navigate={~p"/households/#{@household.id}"}>Back to household</.back>
-
-      <.modal
-        :if={@live_action in [:new, :edit]}
-        id="item-modal"
-        show
-        on_cancel={JS.patch(~p"/households/#{@household.id}/pantry")}
-      >
-        <.live_component
-          module={FeedMeWeb.PantryLive.ItemFormComponent}
-          id={@item.id || :new}
-          title={@page_title}
-          action={@live_action}
-          item={@item}
-          categories={@categories}
-          household={@household}
-          patch={~p"/households/#{@household.id}/pantry"}
-        />
-      </.modal>
     </div>
     """
   end

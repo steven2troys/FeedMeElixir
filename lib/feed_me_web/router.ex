@@ -84,8 +84,6 @@ defmodule FeedMeWeb.Router do
 
       # Pantry routes
       live "/households/:household_id/pantry", PantryLive.Index, :index
-      live "/households/:household_id/pantry/new", PantryLive.Index, :new
-      live "/households/:household_id/pantry/:id/edit", PantryLive.Index, :edit
       live "/households/:household_id/pantry/:id", PantryLive.Show, :show
       live "/households/:household_id/pantry/categories", PantryLive.Categories, :index
 

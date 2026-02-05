@@ -9,7 +9,7 @@ defmodule FeedMeWeb.ShoppingLive.ListFormComponent do
     ~H"""
     <div>
       <.header>
-        <%= @title %>
+        {@title}
       </.header>
 
       <.simple_form

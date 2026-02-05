@@ -151,7 +151,11 @@ defmodule FeedMe.Pantry do
     query =
       case Keyword.get(opts, :needs_restock) do
         true ->
-          where(query, [i], i.always_in_stock == true and i.quantity <= coalesce(i.restock_threshold, 0))
+          where(
+            query,
+            [i],
+            i.always_in_stock == true and i.quantity <= coalesce(i.restock_threshold, 0)
+          )
 
         _ ->
           query
@@ -188,7 +192,10 @@ defmodule FeedMe.Pantry do
   """
   def find_item_by_name(name, household_id) do
     Item
-    |> where([i], i.household_id == ^household_id and fragment("LOWER(?)", i.name) == ^String.downcase(name))
+    |> where(
+      [i],
+      i.household_id == ^household_id and fragment("LOWER(?)", i.name) == ^String.downcase(name)
+    )
     |> preload(:category)
     |> Repo.one()
   end
@@ -296,14 +303,24 @@ defmodule FeedMe.Pantry do
   Removes quantity from an item.
   """
   def remove_from_item(%Item{} = item, amount, user, opts \\ []) do
-    adjust_quantity(item, Decimal.negate(Decimal.new(amount)), user, Keyword.put(opts, :action, :remove))
+    adjust_quantity(
+      item,
+      Decimal.negate(Decimal.new(amount)),
+      user,
+      Keyword.put(opts, :action, :remove)
+    )
   end
 
   @doc """
   Uses quantity from an item (e.g., when cooking).
   """
   def use_item(%Item{} = item, amount, user, opts \\ []) do
-    adjust_quantity(item, Decimal.negate(Decimal.new(amount)), user, Keyword.put(opts, :action, :use))
+    adjust_quantity(
+      item,
+      Decimal.negate(Decimal.new(amount)),
+      user,
+      Keyword.put(opts, :action, :use)
+    )
   end
 
   @doc """

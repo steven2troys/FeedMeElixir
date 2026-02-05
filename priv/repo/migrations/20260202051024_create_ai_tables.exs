@@ -7,10 +7,14 @@ defmodule FeedMe.Repo.Migrations.CreateAiTables do
       add :id, :binary_id, primary_key: true
       add :provider, :string, null: false
       add :encrypted_key, :binary, null: false
-      add :key_hint, :string  # Last 4 chars for display
+      # Last 4 chars for display
+      add :key_hint, :string
       add :is_valid, :boolean, default: true
       add :last_used_at, :utc_datetime
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :created_by_id, references(:users, type: :binary_id, on_delete: :nilify_all)
 
       timestamps(type: :utc_datetime)
@@ -25,7 +29,10 @@ defmodule FeedMe.Repo.Migrations.CreateAiTables do
       add :title, :string
       add :model, :string
       add :status, :string, default: "active"
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :started_by_id, references(:users, type: :binary_id, on_delete: :nilify_all)
 
       timestamps(type: :utc_datetime)
@@ -37,12 +44,18 @@ defmodule FeedMe.Repo.Migrations.CreateAiTables do
     # Messages
     create table(:ai_messages, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :role, :string, null: false  # user, assistant, system, tool
+      # user, assistant, system, tool
+      add :role, :string, null: false
       add :content, :text
-      add :tool_calls, :map  # JSON for tool calls
-      add :tool_call_id, :string  # For tool responses
-      add :metadata, :map  # tokens, model, etc.
-      add :conversation_id, references(:ai_conversations, type: :binary_id, on_delete: :delete_all), null: false
+      # JSON for tool calls
+      add :tool_calls, :map
+      # For tool responses
+      add :tool_call_id, :string
+      # tokens, model, etc.
+      add :metadata, :map
+
+      add :conversation_id,
+          references(:ai_conversations, type: :binary_id, on_delete: :delete_all), null: false
 
       timestamps(type: :utc_datetime)
     end

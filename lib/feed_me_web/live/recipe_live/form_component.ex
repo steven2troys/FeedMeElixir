@@ -9,7 +9,7 @@ defmodule FeedMeWeb.RecipeLive.FormComponent do
     ~H"""
     <div>
       <.header>
-        <%= @title %>
+        {@title}
       </.header>
 
       <.simple_form
@@ -31,7 +31,12 @@ defmodule FeedMeWeb.RecipeLive.FormComponent do
         <.input field={@form[:instructions]} type="textarea" label="Instructions" rows="6" />
 
         <div class="grid grid-cols-2 gap-4">
-          <.input field={@form[:source_name]} type="text" label="Source" placeholder="e.g., Grandma's cookbook" />
+          <.input
+            field={@form[:source_name]}
+            type="text"
+            label="Source"
+            placeholder="e.g., Grandma's cookbook"
+          />
           <.input field={@form[:source_url]} type="url" label="Source URL" placeholder="https://..." />
         </div>
 

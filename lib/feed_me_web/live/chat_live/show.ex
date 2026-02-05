@@ -229,7 +229,7 @@ defmodule FeedMeWeb.ChatLive.Show do
     ~H"""
     <div class="mx-auto max-w-3xl h-[calc(100vh-200px)] flex flex-col">
       <.header>
-        <%= @conversation.title || "New Chat" %>
+        {@conversation.title || "New Chat"}
         <:actions>
           <button phx-click="new_chat" class="btn btn-primary btn-sm">
             <.icon name="hero-plus" class="size-4 mr-1" /> New Chat
@@ -324,11 +324,10 @@ defmodule FeedMeWeb.ChatLive.Show do
         <div class="chat-bubble bg-base-300 text-base-content text-sm p-0 overflow-hidden">
           <details class="collapse collapse-arrow bg-base-300">
             <summary class="collapse-title min-h-0 py-2 px-4 text-xs font-medium">
-              <.icon name="hero-magnifying-glass" class="size-3 inline mr-1" />
-              Web Search Results
+              <.icon name="hero-magnifying-glass" class="size-3 inline mr-1" /> Web Search Results
             </summary>
             <div class="collapse-content px-4 pb-3">
-              <div class="whitespace-pre-wrap text-xs opacity-90"><%= @message.content %></div>
+              <div class="whitespace-pre-wrap text-xs opacity-90">{@message.content}</div>
             </div>
           </details>
         </div>
@@ -338,7 +337,7 @@ defmodule FeedMeWeb.ChatLive.Show do
           @message.role == :user && "chat-bubble-primary",
           @message.role == :assistant && "bg-base-200 text-base-content"
         ]}>
-          <div class="whitespace-pre-wrap"><%= @message.content %></div>
+          <div class="whitespace-pre-wrap">{@message.content}</div>
         </div>
       <% end %>
     </div>

@@ -24,7 +24,16 @@ defmodule FeedMe.Recipes.Ingredient do
   @doc false
   def changeset(ingredient, attrs) do
     ingredient
-    |> cast(attrs, [:name, :quantity, :unit, :notes, :optional, :sort_order, :recipe_id, :pantry_item_id])
+    |> cast(attrs, [
+      :name,
+      :quantity,
+      :unit,
+      :notes,
+      :optional,
+      :sort_order,
+      :recipe_id,
+      :pantry_item_id
+    ])
     |> validate_required([:name, :recipe_id])
     |> validate_length(:name, min: 1, max: 200)
     |> validate_number(:quantity, greater_than: 0)

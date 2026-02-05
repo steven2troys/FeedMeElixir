@@ -92,7 +92,10 @@ defmodule FeedMe.AITest do
       assert conversation.title == "Test Chat"
     end
 
-    test "list_conversations/1 returns conversations for household", %{household: household, user: user} do
+    test "list_conversations/1 returns conversations for household", %{
+      household: household,
+      user: user
+    } do
       {:ok, conv1} = AI.create_conversation(household.id, user, title: "First")
       {:ok, _conv2} = AI.create_conversation(household.id, user, title: "Second")
 
@@ -100,7 +103,10 @@ defmodule FeedMe.AITest do
       assert length(conversations) == 2
     end
 
-    test "list_conversations/1 excludes archived conversations", %{household: household, user: user} do
+    test "list_conversations/1 excludes archived conversations", %{
+      household: household,
+      user: user
+    } do
       {:ok, conv1} = AI.create_conversation(household.id, user, title: "Active")
       {:ok, conv2} = AI.create_conversation(household.id, user, title: "Archived")
       AI.archive_conversation(conv2)
@@ -110,7 +116,10 @@ defmodule FeedMe.AITest do
       assert hd(conversations).id == conv1.id
     end
 
-    test "get_conversation/2 returns conversation with messages", %{household: household, user: user} do
+    test "get_conversation/2 returns conversation with messages", %{
+      household: household,
+      user: user
+    } do
       {:ok, conversation} = AI.create_conversation(household.id, user)
       {:ok, _msg} = AI.create_message(conversation.id, %{role: :user, content: "Hello"})
 
@@ -136,7 +145,10 @@ defmodule FeedMe.AITest do
       assert archived.status == :archived
     end
 
-    test "delete_conversation/1 removes conversation and messages", %{household: household, user: user} do
+    test "delete_conversation/1 removes conversation and messages", %{
+      household: household,
+      user: user
+    } do
       {:ok, conversation} = AI.create_conversation(household.id, user)
       {:ok, _msg} = AI.create_message(conversation.id, %{role: :user, content: "Hello"})
 
@@ -163,14 +175,17 @@ defmodule FeedMe.AITest do
     end
 
     test "create_message/2 creates an assistant message", %{conversation: conversation} do
-      {:ok, message} = AI.create_message(conversation.id, %{role: :assistant, content: "Hi there!"})
+      {:ok, message} =
+        AI.create_message(conversation.id, %{role: :assistant, content: "Hi there!"})
 
       assert message.role == :assistant
     end
 
     test "create_message/2 with tool_calls", %{conversation: conversation} do
       tool_calls = %{"calls" => [%{"id" => "call_1", "function" => %{"name" => "test"}}]}
-      {:ok, message} = AI.create_message(conversation.id, %{role: :assistant, tool_calls: tool_calls})
+
+      {:ok, message} =
+        AI.create_message(conversation.id, %{role: :assistant, tool_calls: tool_calls})
 
       assert message.tool_calls == tool_calls
     end

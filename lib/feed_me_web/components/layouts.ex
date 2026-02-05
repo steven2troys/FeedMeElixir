@@ -115,7 +115,7 @@ defmodule FeedMeWeb.Layouts do
     """
   end
 
-@doc """
+  @doc """
   Provides dark vs light theme toggle based on themes defined in app.css.
 
   See <head> in root.html.heex which applies the theme before page load.

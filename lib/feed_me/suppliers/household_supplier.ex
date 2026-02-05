@@ -71,7 +71,12 @@ defmodule FeedMe.Suppliers.HouseholdSupplier do
   # Simple XOR encryption - replace with Cloak in production
   defp encrypt(plaintext) do
     key = encryption_key()
-    :crypto.exor(plaintext, String.duplicate(key, div(byte_size(plaintext), byte_size(key)) + 1) |> binary_part(0, byte_size(plaintext)))
+
+    :crypto.exor(
+      plaintext,
+      String.duplicate(key, div(byte_size(plaintext), byte_size(key)) + 1)
+      |> binary_part(0, byte_size(plaintext))
+    )
   end
 
   defp decrypt(ciphertext) do

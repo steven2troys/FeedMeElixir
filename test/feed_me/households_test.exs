@@ -188,9 +188,13 @@ defmodule FeedMe.HouseholdsTest do
       admin = AccountsFixtures.user_fixture()
       household = HouseholdsFixtures.household_fixture(%{}, admin)
       new_user = AccountsFixtures.user_fixture()
-      invitation = HouseholdsFixtures.invitation_fixture(household, admin, %{email: new_user.email})
 
-      assert {:ok, %Membership{} = membership} = Households.accept_invitation(invitation, new_user)
+      invitation =
+        HouseholdsFixtures.invitation_fixture(household, admin, %{email: new_user.email})
+
+      assert {:ok, %Membership{} = membership} =
+               Households.accept_invitation(invitation, new_user)
+
       assert membership.user_id == new_user.id
       assert membership.household_id == household.id
       assert Households.member?(new_user, household.id)
@@ -200,7 +204,9 @@ defmodule FeedMe.HouseholdsTest do
       admin = AccountsFixtures.user_fixture()
       household = HouseholdsFixtures.household_fixture(%{}, admin)
       new_user = AccountsFixtures.user_fixture()
-      invitation = HouseholdsFixtures.invitation_fixture(household, admin, %{email: new_user.email})
+
+      invitation =
+        HouseholdsFixtures.invitation_fixture(household, admin, %{email: new_user.email})
 
       # Manually expire the invitation
       expired_at = DateTime.utc_now() |> DateTime.add(-1, :day) |> DateTime.truncate(:second)

@@ -101,7 +101,7 @@ defmodule FeedMeWeb.RecipeLive.Index do
     <div class="mx-auto max-w-4xl">
       <.header>
         Recipes
-        <:subtitle><%= @household.name %></:subtitle>
+        <:subtitle>{@household.name}</:subtitle>
         <:actions>
           <.link patch={~p"/households/#{@household.id}/recipes/new"}>
             <.button>New Recipe</.button>
@@ -127,7 +127,7 @@ defmodule FeedMeWeb.RecipeLive.Index do
             <select name="tag" class="select select-bordered">
               <option value="">All Tags</option>
               <%= for tag <- @tags do %>
-                <option value={tag} selected={@filter_tag == tag}><%= tag %></option>
+                <option value={tag} selected={@filter_tag == tag}>{tag}</option>
               <% end %>
             </select>
           </form>
@@ -170,7 +170,7 @@ defmodule FeedMeWeb.RecipeLive.Index do
                 <div class="card-body p-4">
                   <div class="flex items-start justify-between">
                     <.link navigate={~p"/households/#{@household.id}/recipes/#{recipe.id}"}>
-                      <h3 class="card-title text-base hover:text-primary"><%= recipe.title %></h3>
+                      <h3 class="card-title text-base hover:text-primary">{recipe.title}</h3>
                     </.link>
                     <button
                       phx-click="toggle_favorite"
@@ -188,20 +188,20 @@ defmodule FeedMeWeb.RecipeLive.Index do
                     <%= if Recipe.total_time(recipe) > 0 do %>
                       <span class="badge badge-sm badge-ghost">
                         <.icon name="hero-clock" class="size-3 mr-1" />
-                        <%= Recipe.total_time(recipe) %> min
+                        {Recipe.total_time(recipe)} min
                       </span>
                     <% end %>
                     <%= if recipe.servings do %>
                       <span class="badge badge-sm badge-ghost">
                         <.icon name="hero-users" class="size-3 mr-1" />
-                        <%= recipe.servings %>
+                        {recipe.servings}
                       </span>
                     <% end %>
                   </div>
                   <%= if recipe.tags != [] do %>
                     <div class="flex flex-wrap gap-1 mt-2">
                       <%= for tag <- Enum.take(recipe.tags, 3) do %>
-                        <span class="badge badge-xs"><%= tag %></span>
+                        <span class="badge badge-xs">{tag}</span>
                       <% end %>
                     </div>
                   <% end %>

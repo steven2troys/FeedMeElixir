@@ -145,17 +145,32 @@ defmodule FeedMe.PantryTest do
 
   describe "item predicates" do
     test "needs_restock?/1 returns true when below threshold" do
-      item = %Item{always_in_stock: true, quantity: Decimal.new("2"), restock_threshold: Decimal.new("5")}
+      item = %Item{
+        always_in_stock: true,
+        quantity: Decimal.new("2"),
+        restock_threshold: Decimal.new("5")
+      }
+
       assert Item.needs_restock?(item)
     end
 
     test "needs_restock?/1 returns false when above threshold" do
-      item = %Item{always_in_stock: true, quantity: Decimal.new("10"), restock_threshold: Decimal.new("5")}
+      item = %Item{
+        always_in_stock: true,
+        quantity: Decimal.new("10"),
+        restock_threshold: Decimal.new("5")
+      }
+
       refute Item.needs_restock?(item)
     end
 
     test "needs_restock?/1 returns false when not always_in_stock" do
-      item = %Item{always_in_stock: false, quantity: Decimal.new("0"), restock_threshold: Decimal.new("5")}
+      item = %Item{
+        always_in_stock: false,
+        quantity: Decimal.new("0"),
+        restock_threshold: Decimal.new("5")
+      }
+
       refute Item.needs_restock?(item)
     end
 

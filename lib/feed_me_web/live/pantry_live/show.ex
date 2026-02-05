@@ -28,11 +28,27 @@ defmodule FeedMeWeb.PantryLive.Show do
   end
 
   @impl true
+  def handle_event("delete", %{"id" => id}, socket) do
+    item = Pantry.get_item(id, socket.assigns.household.id)
+
+    if item do
+      {:ok, _} = Pantry.delete_item(item)
+
+      {:noreply,
+       socket
+       |> put_flash(:info, "#{item.name} removed from pantry")
+       |> push_navigate(to: ~p"/households/#{socket.assigns.household.id}/pantry")}
+    else
+      {:noreply, put_flash(socket, :error, "Item not found")}
+    end
+  end
+
   def handle_event("adjust", %{"amount" => amount}, socket) do
     user = socket.assigns.current_scope.user
     item = socket.assigns.item
 
-    {:ok, updated_item} = Pantry.adjust_quantity(item, Decimal.new(amount), user, reason: "Manual adjustment")
+    {:ok, updated_item} =
+      Pantry.adjust_quantity(item, Decimal.new(amount), user, reason: "Manual adjustment")
 
     {:noreply,
      socket
@@ -45,14 +61,19 @@ defmodule FeedMeWeb.PantryLive.Show do
     ~H"""
     <div class="mx-auto max-w-2xl">
       <.header>
-        <%= @item.name %>
+        {@item.name}
         <:subtitle>
-          <%= if @item.category, do: @item.category.name, else: "Uncategorized" %>
+          {if @item.category, do: @item.category.name, else: "Uncategorized"}
         </:subtitle>
         <:actions>
-          <.link navigate={~p"/households/#{@household.id}/pantry/#{@item.id}/edit"}>
-            <.button>Edit</.button>
-          </.link>
+          <button
+            phx-click="delete"
+            phx-value-id={@item.id}
+            data-confirm="Are you sure you want to delete this item?"
+            class="btn btn-ghost btn-sm text-error"
+          >
+            <.icon name="hero-trash" class="size-4" /> Remove
+          </button>
         </:actions>
       </.header>
 
@@ -61,8 +82,8 @@ defmodule FeedMeWeb.PantryLive.Show do
           <div class="card-body">
             <h3 class="card-title text-sm">Current Quantity</h3>
             <p class="text-3xl font-bold">
-              <%= Decimal.to_string(@item.quantity) %>
-              <span class="text-lg font-normal text-base-content/70"><%= @item.unit %></span>
+              {Decimal.to_string(@item.quantity)}
+              <span class="text-lg font-normal text-base-content/70">{@item.unit}</span>
             </p>
             <div class="card-actions mt-4">
               <form phx-submit="adjust" class="flex gap-2 w-full">
@@ -92,9 +113,9 @@ defmodule FeedMeWeb.PantryLive.Show do
                   <.icon name="hero-calendar" class="size-5" />
                   <span>
                     <%= if Item.expired?(@item) do %>
-                      Expired <%= @item.expiration_date %>
+                      Expired {@item.expiration_date}
                     <% else %>
-                      Expires <%= @item.expiration_date %>
+                      Expires {@item.expiration_date}
                     <% end %>
                   </span>
                 </div>
@@ -104,7 +125,9 @@ defmodule FeedMeWeb.PantryLive.Show do
                 <div class="flex items-center gap-2 text-info">
                   <.icon name="hero-arrow-path" class="size-5" />
                   <span>
-                    Auto-restock when &le; <%= Decimal.to_string(@item.restock_threshold || Decimal.new(0)) %>
+                    Auto-restock when &le; {Decimal.to_string(
+                      @item.restock_threshold || Decimal.new(0)
+                    )}
                   </span>
                 </div>
                 <%= if Item.needs_restock?(@item) do %>
@@ -123,7 +146,7 @@ defmodule FeedMeWeb.PantryLive.Show do
         <div class="mt-6 card bg-base-100 shadow border border-base-200">
           <div class="card-body">
             <h3 class="card-title text-sm">Notes</h3>
-            <p class="whitespace-pre-wrap"><%= @item.notes %></p>
+            <p class="whitespace-pre-wrap">{@item.notes}</p>
           </div>
         </div>
       <% end %>
@@ -144,17 +167,19 @@ defmodule FeedMeWeb.PantryLive.Show do
                     tx.action == :use && "badge-warning",
                     tx.action == :adjust && "badge-info"
                   ]}>
-                    <%= tx.action %>
+                    {tx.action}
                   </span>
                   <span class="ml-2 font-mono">
-                    <%= if Decimal.compare(tx.quantity_change, Decimal.new(0)) == :gt, do: "+", else: "" %><%= Decimal.to_string(tx.quantity_change) %>
+                    {if Decimal.compare(tx.quantity_change, Decimal.new(0)) == :gt, do: "+", else: ""}{Decimal.to_string(
+                      tx.quantity_change
+                    )}
                   </span>
                   <%= if tx.reason do %>
-                    <span class="text-base-content/70 text-sm ml-2">(<%= tx.reason %>)</span>
+                    <span class="text-base-content/70 text-sm ml-2">({tx.reason})</span>
                   <% end %>
                 </div>
                 <div class="text-sm text-base-content/70">
-                  <%= Calendar.strftime(tx.inserted_at, "%b %d, %H:%M") %>
+                  {Calendar.strftime(tx.inserted_at, "%b %d, %H:%M")}
                 </div>
               </div>
             <% end %>

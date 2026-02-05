@@ -76,7 +76,10 @@ defmodule FeedMeWeb.HouseholdLive.Members do
 
   @impl true
   def handle_event("edit_member", %{"id" => member_id}, socket) do
-    {:noreply, push_patch(socket, to: ~p"/households/#{socket.assigns.household.id}/members/#{member_id}/edit")}
+    {:noreply,
+     push_patch(socket,
+       to: ~p"/households/#{socket.assigns.household.id}/members/#{member_id}/edit"
+     )}
   end
 
   def handle_event("save_profile", %{"taste_profile" => profile_params}, socket) do
@@ -223,9 +226,9 @@ defmodule FeedMeWeb.HouseholdLive.Members do
             <%= for invitation <- @invitations do %>
               <div class="flex items-center justify-between p-4 bg-warning/10 rounded-lg border border-warning/30">
                 <div>
-                  <p class="font-medium"><%= invitation.email %></p>
+                  <p class="font-medium">{invitation.email}</p>
                   <p class="text-sm text-base-content/60">
-                    Expires <%= Calendar.strftime(invitation.expires_at, "%B %d, %Y") %>
+                    Expires {Calendar.strftime(invitation.expires_at, "%B %d, %Y")}
                   </p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -269,7 +272,7 @@ defmodule FeedMeWeb.HouseholdLive.Members do
       >
         <.header>
           Edit Profile
-          <:subtitle><%= @editing_member.user.name || @editing_member.user.email %></:subtitle>
+          <:subtitle>{@editing_member.user.name || @editing_member.user.email}</:subtitle>
         </.header>
 
         <div class="mt-6 space-y-6">
@@ -279,7 +282,7 @@ defmodule FeedMeWeb.HouseholdLive.Members do
             <.simple_form for={@user_form} phx-submit="save_user">
               <.input field={@user_form[:name]} type="text" label="Display Name" />
               <div class="text-sm text-base-content/60">
-                Email: <%= @editing_member.user.email %>
+                Email: {@editing_member.user.email}
               </div>
               <:actions>
                 <.button phx-disable-with="Saving...">Save Name</.button>
@@ -288,8 +291,8 @@ defmodule FeedMeWeb.HouseholdLive.Members do
           </div>
 
           <div class="divider"></div>
-
-          <!-- Taste Profile Section -->
+          
+    <!-- Taste Profile Section -->
           <div class="space-y-6">
             <h3 class="font-semibold">Taste Profile</h3>
 
@@ -354,14 +357,14 @@ defmodule FeedMeWeb.HouseholdLive.Members do
             <% else %>
               <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <span class="text-primary font-semibold text-lg">
-                  <%= String.first(@member.user.name || @member.user.email) |> String.upcase() %>
+                  {String.first(@member.user.name || @member.user.email) |> String.upcase()}
                 </span>
               </div>
             <% end %>
             <div>
-              <p class="font-medium text-lg"><%= @member.user.name || @member.user.email %></p>
+              <p class="font-medium text-lg">{@member.user.name || @member.user.email}</p>
               <%= if @member.user.name do %>
-                <p class="text-sm text-base-content/60"><%= @member.user.email %></p>
+                <p class="text-sm text-base-content/60">{@member.user.email}</p>
               <% end %>
             </div>
           </div>
@@ -382,24 +385,24 @@ defmodule FeedMeWeb.HouseholdLive.Members do
                 @member.role == :admin && "badge-primary",
                 @member.role == :member && "badge-neutral"
               ]}>
-                <%= @member.role %>
+                {@member.role}
               </span>
             <% end %>
           </div>
         </div>
-
-        <!-- Taste Profile Summary -->
+        
+    <!-- Taste Profile Summary -->
         <%= if @member.taste_profile do %>
           <div class="mt-3 pt-3 border-t border-base-200">
             <div class="flex flex-wrap gap-2">
               <%= if @member.taste_profile.dietary_restrictions != [] do %>
                 <%= for item <- @member.taste_profile.dietary_restrictions do %>
-                  <span class="badge badge-outline badge-sm"><%= item %></span>
+                  <span class="badge badge-outline badge-sm">{item}</span>
                 <% end %>
               <% end %>
               <%= if @member.taste_profile.allergies != [] do %>
                 <%= for item <- @member.taste_profile.allergies do %>
-                  <span class="badge badge-error badge-outline badge-sm">⚠ <%= item %></span>
+                  <span class="badge badge-error badge-outline badge-sm">⚠ {item}</span>
                 <% end %>
               <% end %>
               <%= if @member.taste_profile.dietary_restrictions == [] && @member.taste_profile.allergies == [] do %>
@@ -412,8 +415,8 @@ defmodule FeedMeWeb.HouseholdLive.Members do
             <span class="text-sm text-base-content/50">No taste profile yet</span>
           </div>
         <% end %>
-
-        <!-- Actions -->
+        
+    <!-- Actions -->
         <div class="mt-3 flex justify-end gap-2">
           <%= if @role == :admin || @member.user.id == @current_user.id do %>
             <button
@@ -421,8 +424,7 @@ defmodule FeedMeWeb.HouseholdLive.Members do
               phx-value-id={@member.user.id}
               class="btn btn-ghost btn-sm"
             >
-              <.icon name="hero-pencil" class="size-4 mr-1" />
-              Edit Profile
+              <.icon name="hero-pencil" class="size-4 mr-1" /> Edit Profile
             </button>
           <% end %>
           <%= if @role == :admin && @member.user.id != @current_user.id do %>
@@ -450,14 +452,14 @@ defmodule FeedMeWeb.HouseholdLive.Members do
     ~H"""
     <div class="space-y-2">
       <div>
-        <h4 class="font-medium text-sm"><%= @title %></h4>
-        <p class="text-xs text-base-content/60"><%= @description %></p>
+        <h4 class="font-medium text-sm">{@title}</h4>
+        <p class="text-xs text-base-content/60">{@description}</p>
       </div>
 
       <div class="flex flex-wrap gap-2">
         <%= for item <- @items do %>
           <span class="badge badge-lg gap-1">
-            <%= item %>
+            {item}
             <button
               type="button"
               phx-click="remove_item"

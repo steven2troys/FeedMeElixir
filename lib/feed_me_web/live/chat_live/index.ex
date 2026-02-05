@@ -126,7 +126,9 @@ defmodule FeedMeWeb.ChatLive.Index do
             <div class="text-center py-12 text-base-content/60">
               <.icon name="hero-chat-bubble-left-right" class="size-12 mx-auto mb-4" />
               <p>No conversations yet.</p>
-              <p class="text-sm mt-2">Start a new chat to get help with meal planning, shopping, and more.</p>
+              <p class="text-sm mt-2">
+                Start a new chat to get help with meal planning, shopping, and more.
+              </p>
             </div>
           <% else %>
             <div class="space-y-2">
@@ -138,10 +140,10 @@ defmodule FeedMeWeb.ChatLive.Index do
                       class="flex-1"
                     >
                       <h3 class="font-medium">
-                        <%= conversation.title || "New conversation" %>
+                        {conversation.title || "New conversation"}
                       </h3>
                       <p class="text-sm text-base-content/60">
-                        <%= Calendar.strftime(conversation.updated_at, "%b %d, %Y at %I:%M %p") %>
+                        {Calendar.strftime(conversation.updated_at, "%b %d, %Y at %I:%M %p")}
                       </p>
                     </.link>
                     <div class="flex gap-1">

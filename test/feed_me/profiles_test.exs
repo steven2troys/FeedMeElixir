@@ -13,7 +13,10 @@ defmodule FeedMe.ProfilesTest do
       %{user: user, household: household}
     end
 
-    test "get_taste_profile/2 returns nil when no profile exists", %{user: user, household: household} do
+    test "get_taste_profile/2 returns nil when no profile exists", %{
+      user: user,
+      household: household
+    } do
       assert Profiles.get_taste_profile(user.id, household.id) == nil
     end
 
@@ -30,13 +33,19 @@ defmodule FeedMe.ProfilesTest do
       assert profile.allergies == ["peanuts"]
     end
 
-    test "get_or_create_taste_profile/2 creates when none exists", %{user: user, household: household} do
+    test "get_or_create_taste_profile/2 creates when none exists", %{
+      user: user,
+      household: household
+    } do
       profile = Profiles.get_or_create_taste_profile(user.id, household.id)
       assert profile.user_id == user.id
       assert profile.household_id == household.id
     end
 
-    test "get_or_create_taste_profile/2 returns existing profile", %{user: user, household: household} do
+    test "get_or_create_taste_profile/2 returns existing profile", %{
+      user: user,
+      household: household
+    } do
       {:ok, original} =
         Profiles.create_taste_profile(%{
           user_id: user.id,
@@ -68,12 +77,20 @@ defmodule FeedMe.ProfilesTest do
 
       # Add users to household
       FeedMe.Households.accept_invitation(
-        FeedMe.HouseholdsFixtures.invitation_fixture(household, household |> FeedMe.Repo.preload(:users) |> then(& &1.users) |> hd(), %{email: user1.email}),
+        FeedMe.HouseholdsFixtures.invitation_fixture(
+          household,
+          household |> FeedMe.Repo.preload(:users) |> then(& &1.users) |> hd(),
+          %{email: user1.email}
+        ),
         user1
       )
 
       FeedMe.Households.accept_invitation(
-        FeedMe.HouseholdsFixtures.invitation_fixture(household, household |> FeedMe.Repo.preload(:users) |> then(& &1.users) |> hd(), %{email: user2.email}),
+        FeedMe.HouseholdsFixtures.invitation_fixture(
+          household,
+          household |> FeedMe.Repo.preload(:users) |> then(& &1.users) |> hd(),
+          %{email: user2.email}
+        ),
         user2
       )
 
@@ -102,12 +119,20 @@ defmodule FeedMe.ProfilesTest do
 
       # Add users and create profiles
       FeedMe.Households.accept_invitation(
-        FeedMe.HouseholdsFixtures.invitation_fixture(household, household |> FeedMe.Repo.preload(:users) |> then(& &1.users) |> hd(), %{email: user1.email}),
+        FeedMe.HouseholdsFixtures.invitation_fixture(
+          household,
+          household |> FeedMe.Repo.preload(:users) |> then(& &1.users) |> hd(),
+          %{email: user1.email}
+        ),
         user1
       )
 
       FeedMe.Households.accept_invitation(
-        FeedMe.HouseholdsFixtures.invitation_fixture(household, household |> FeedMe.Repo.preload(:users) |> then(& &1.users) |> hd(), %{email: user2.email}),
+        FeedMe.HouseholdsFixtures.invitation_fixture(
+          household,
+          household |> FeedMe.Repo.preload(:users) |> then(& &1.users) |> hd(),
+          %{email: user2.email}
+        ),
         user2
       )
 

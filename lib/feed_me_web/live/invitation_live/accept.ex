@@ -119,7 +119,7 @@ defmodule FeedMeWeb.InvitationLive.Accept do
             </div>
             <h2 class="text-xl font-semibold mb-2">Already a Member</h2>
             <p class="text-zinc-500 dark:text-zinc-400 mb-6">
-              You're already a member of <%= @invitation.household.name %>.
+              You're already a member of {@invitation.household.name}.
             </p>
             <.link navigate={~p"/households/#{@invitation.household_id}"}>
               <.button>Go to Household</.button>
@@ -130,7 +130,7 @@ defmodule FeedMeWeb.InvitationLive.Accept do
             </div>
             <h2 class="text-xl font-semibold mb-2">You're Invited!</h2>
             <p class="text-zinc-500 dark:text-zinc-400 mb-6">
-              You've been invited to join <strong><%= @invitation.household.name %></strong>
+              You've been invited to join <strong>{@invitation.household.name}</strong>
               as a <strong><%= @invitation.role %></strong>.
             </p>
             <div class="flex gap-3 justify-center">

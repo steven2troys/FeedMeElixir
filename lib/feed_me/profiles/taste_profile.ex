@@ -25,7 +25,15 @@ defmodule FeedMe.Profiles.TasteProfile do
   @doc false
   def changeset(taste_profile, attrs) do
     taste_profile
-    |> cast(attrs, [:dietary_restrictions, :allergies, :dislikes, :favorites, :notes, :user_id, :household_id])
+    |> cast(attrs, [
+      :dietary_restrictions,
+      :allergies,
+      :dislikes,
+      :favorites,
+      :notes,
+      :user_id,
+      :household_id
+    ])
     |> validate_required([:user_id, :household_id])
     |> foreign_key_constraint(:user_id)
     |> foreign_key_constraint(:household_id)
@@ -35,16 +43,23 @@ defmodule FeedMe.Profiles.TasteProfile do
 
   defp normalize_arrays(changeset) do
     # Remove empty strings and duplicates from arrays
-    Enum.reduce([:dietary_restrictions, :allergies, :dislikes, :favorites], changeset, fn field, cs ->
+    Enum.reduce([:dietary_restrictions, :allergies, :dislikes, :favorites], changeset, fn field,
+                                                                                          cs ->
       case get_change(cs, field) do
-        nil -> cs
+        nil ->
+          cs
+
         values when is_list(values) ->
-          normalized = values
-          |> Enum.map(&String.trim/1)
-          |> Enum.reject(&(&1 == ""))
-          |> Enum.uniq()
+          normalized =
+            values
+            |> Enum.map(&String.trim/1)
+            |> Enum.reject(&(&1 == ""))
+            |> Enum.uniq()
+
           put_change(cs, field, normalized)
-        _ -> cs
+
+        _ ->
+          cs
       end
     end)
   end

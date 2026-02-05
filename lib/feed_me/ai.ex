@@ -220,7 +220,7 @@ defmodule FeedMe.AI do
 
         # Get the household's selected model
         household = FeedMe.Households.get_household(household_id)
-        model = household && household.selected_model || default_model()
+        model = (household && household.selected_model) || default_model()
 
         # Save user message
         {:ok, _user_msg} =
@@ -431,6 +431,7 @@ defmodule FeedMe.AI do
     - Be concise and helpful
     - Use the available tools to actually perform actions, don't just describe what you would do
     - When adding items, confirm what you've done
+    - When adding items to the pantry, always provide shelf_life_days to estimate how long the item lasts (e.g., bananas=5, bread=7, milk=10, eggs=21, fresh meat=2, canned goods=730). The system will calculate the exact expiration date automatically.
     - Consider dietary restrictions and allergies when suggesting recipes
     - If you're unsure about something, ask for clarification
 
@@ -455,6 +456,184 @@ defmodule FeedMe.AI do
         update_conversation(conversation, %{title: title})
       end
     end
+  end
+
+  # =============================================================================
+  # Ephemeral Chat (no DB persistence)
+  # =============================================================================
+
+  @doc """
+  Sends messages to AI without persisting to the database.
+  Used by the quick-entry chat drawer for ephemeral interactions.
+
+  Takes a list of message maps `[%{role: :user, content: "..."}]` and a context map
+  with `:household_id`, `:user`, and optional `:page_context` and `:image`.
+
+  Returns `{:ok, %{content: string}}` or `{:error, reason}`.
+  """
+  def ephemeral_chat(messages, context) do
+    household_id = context.household_id
+
+    case get_api_key(household_id) do
+      nil ->
+        {:error, :no_api_key}
+
+      api_key ->
+        decrypted_key = ApiKey.decrypt_key(api_key)
+
+        household = FeedMe.Households.get_household(household_id)
+        model = (household && household.selected_model) || default_model()
+
+        # Build messages with page-context-aware system prompt
+        page_context = Map.get(context, :page_context)
+        system = [%{role: :system, content: ephemeral_system_prompt(page_context)}]
+
+        # Add image content if present
+        api_messages =
+          system ++
+            Enum.map(messages, fn msg ->
+              %{role: msg.role, content: msg.content}
+            end)
+
+        api_messages =
+          case Map.get(context, :image) do
+            %{data: data, type: type} ->
+              vision_content = [
+                %{
+                  type: "text",
+                  text:
+                    "Analyze this image (#{type}). Identify any food items and take appropriate action."
+                },
+                %{type: "image_url", image_url: %{url: data}}
+              ]
+
+              api_messages ++ [%{role: :user, content: vision_content}]
+
+            _ ->
+              api_messages
+          end
+
+        tools = Tools.definitions()
+
+        case do_ephemeral_chat(decrypted_key, api_messages, tools, context, model) do
+          {:ok, response} ->
+            touch_api_key(api_key)
+            {:ok, response}
+
+          {:error, :invalid_api_key} ->
+            mark_key_invalid(api_key)
+            {:error, :invalid_api_key}
+
+          error ->
+            error
+        end
+    end
+  end
+
+  defp do_ephemeral_chat(api_key, messages, tools, context, model) do
+    case OpenRouter.chat(api_key, messages, model: model, tools: tools) do
+      {:ok, response} ->
+        if response.tool_calls do
+          handle_ephemeral_tool_calls(api_key, messages, tools, response, context, model)
+        else
+          {:ok, %{content: response.content}}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  defp handle_ephemeral_tool_calls(api_key, messages, tools, response, context, model) do
+    # Execute each tool call (same as persisted version, but no DB writes)
+    tool_results =
+      Enum.map(response.tool_calls, fn tool_call ->
+        function = tool_call["function"]
+        tool_name = function["name"]
+        args = Jason.decode!(function["arguments"])
+
+        result =
+          case Tools.execute(tool_name, args, context) do
+            {:ok, result} -> result
+            {:error, error} -> "Error: #{error}"
+          end
+
+        %{
+          role: "tool",
+          content: result,
+          tool_call_id: tool_call["id"]
+        }
+      end)
+
+    # Continue conversation with tool results
+    updated_messages =
+      messages ++
+        [
+          %{
+            role: :assistant,
+            content: response.content,
+            tool_calls: response.tool_calls
+          }
+          | tool_results
+        ]
+
+    case OpenRouter.chat(api_key, updated_messages, model: model, tools: tools) do
+      {:ok, final_response} ->
+        if final_response.tool_calls do
+          # Handle chained tool calls (max 1 more round)
+          handle_ephemeral_tool_calls(
+            api_key,
+            updated_messages,
+            tools,
+            final_response,
+            context,
+            model
+          )
+        else
+          {:ok, %{content: final_response.content}}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  defp ephemeral_system_prompt(page_context) do
+    base = """
+    You are a helpful AI assistant for FeedMe, a household management app focused on grocery shopping, pantry inventory, and meal planning.
+
+    Your capabilities include:
+    - Managing the household's pantry inventory (adding items, checking stock)
+    - Managing shopping lists (adding items to buy)
+    - Searching and suggesting recipes
+    - Understanding the household's taste profile (dietary restrictions, allergies, preferences)
+    - Helping plan meals based on what's available
+
+    Guidelines:
+    - Be concise and helpful — this is a quick-entry chat, keep responses brief
+    - Use the available tools to actually perform actions, don't just describe what you would do
+    - When adding items, confirm what you've done
+    - When adding items to the pantry, always provide shelf_life_days to estimate how long the item lasts (e.g., bananas=5, bread=7, milk=10, eggs=21, fresh meat=2, canned goods=730). The system will calculate the exact expiration date automatically.
+    - Consider dietary restrictions and allergies when suggesting recipes
+    - If a request is complex and needs a full conversation, suggest the user open AI Chat from the sidebar
+    """
+
+    context_hint =
+      case page_context do
+        :pantry ->
+          "\nThe user is currently on the Pantry page. Default to adding/checking pantry items when they describe food."
+
+        :shopping ->
+          "\nThe user is currently on the Shopping Lists page. Default to adding items to their shopping list."
+
+        :recipes ->
+          "\nThe user is currently browsing Recipes. Help find and suggest recipes."
+
+        _ ->
+          "\nHelp with any household management tasks."
+      end
+
+    base <> context_hint
   end
 
   # =============================================================================
@@ -492,8 +671,16 @@ defmodule FeedMe.AI do
   """
   def recommended_models do
     [
-      %{id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", description: "Best balance of speed and capability"},
-      %{id: "anthropic/claude-3-opus", name: "Claude 3 Opus", description: "Most capable, slower"},
+      %{
+        id: "anthropic/claude-3.5-sonnet",
+        name: "Claude 3.5 Sonnet",
+        description: "Best balance of speed and capability"
+      },
+      %{
+        id: "anthropic/claude-3-opus",
+        name: "Claude 3 Opus",
+        description: "Most capable, slower"
+      },
       %{id: "openai/gpt-4-turbo", name: "GPT-4 Turbo", description: "Fast and capable"},
       %{id: "openai/gpt-4o", name: "GPT-4o", description: "Optimized for speed"},
       %{id: "google/gemini-pro-1.5", name: "Gemini Pro 1.5", description: "Large context window"}

@@ -209,7 +209,8 @@ defmodule FeedMe.Pantry.SyncTest do
 
   describe "tool execution" do
     test "update_pantry_item updates quantity", %{household: household} do
-      pantry_item = PantryFixtures.item_fixture(household, %{name: "Milk", quantity: Decimal.new("2")})
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Milk", quantity: Decimal.new("2")})
 
       # Call the tool executor directly via do_sync internals
       # We test the tool execution function by simulating what the AI would call
@@ -231,7 +232,12 @@ defmodule FeedMe.Pantry.SyncTest do
       result =
         Sync.execute_tool(
           "create_pantry_item",
-          %{"name" => "Fresh Tagliatelle", "quantity" => 400, "unit" => "g", "category" => "Pasta"},
+          %{
+            "name" => "Fresh Tagliatelle",
+            "quantity" => 400,
+            "unit" => "g",
+            "category" => "Pasta"
+          },
           household.id
         )
 

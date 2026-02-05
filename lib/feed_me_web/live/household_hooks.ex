@@ -26,7 +26,8 @@ defmodule FeedMeWeb.HouseholdHooks do
           {:cont,
            socket
            |> assign(:household, household)
-           |> assign(:role, role)}
+           |> assign(:role, role)
+           |> FeedMeWeb.ChatDrawerHooks.attach_chat_drawer()}
       end
     else
       {:cont, socket}

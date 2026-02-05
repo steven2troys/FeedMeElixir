@@ -21,7 +21,8 @@ defmodule FeedMeWeb.PantryLive.Categories do
 
   @impl true
   def handle_event("new", _params, socket) do
-    {:noreply, assign(socket, :new_category, %Category{household_id: socket.assigns.household.id})}
+    {:noreply,
+     assign(socket, :new_category, %Category{household_id: socket.assigns.household.id})}
   end
 
   def handle_event("cancel_new", _params, socket) do
@@ -40,7 +41,8 @@ defmodule FeedMeWeb.PantryLive.Categories do
          |> assign(:categories, Pantry.list_categories(socket.assigns.household.id))}
 
       {:error, changeset} ->
-        {:noreply, put_flash(socket, :error, "Failed to create category: #{error_messages(changeset)}")}
+        {:noreply,
+         put_flash(socket, :error, "Failed to create category: #{error_messages(changeset)}")}
     end
   end
 
@@ -107,7 +109,7 @@ defmodule FeedMeWeb.PantryLive.Categories do
     <div class="mx-auto max-w-2xl">
       <.header>
         Pantry Categories
-        <:subtitle><%= @household.name %></:subtitle>
+        <:subtitle>{@household.name}</:subtitle>
         <:actions>
           <button phx-click="new" class="btn btn-primary btn-sm">
             <.icon name="hero-plus" class="size-4" /> Add Category
@@ -139,7 +141,9 @@ defmodule FeedMeWeb.PantryLive.Categories do
                         autofocus
                       />
                       <button type="submit" class="btn btn-primary btn-sm">Save</button>
-                      <button type="button" phx-click="cancel_edit" class="btn btn-ghost btn-sm">Cancel</button>
+                      <button type="button" phx-click="cancel_edit" class="btn btn-ghost btn-sm">
+                        Cancel
+                      </button>
                     </form>
                   <% else %>
                     <div class="flex items-center gap-3">
@@ -148,7 +152,7 @@ defmodule FeedMeWeb.PantryLive.Categories do
                           <.icon name={category.icon} class="size-5" />
                         </span>
                       <% end %>
-                      <span class="font-medium"><%= category.name %></span>
+                      <span class="font-medium">{category.name}</span>
                     </div>
                     <div class="flex items-center gap-1">
                       <button phx-click="edit" phx-value-id={category.id} class="btn btn-ghost btn-sm">

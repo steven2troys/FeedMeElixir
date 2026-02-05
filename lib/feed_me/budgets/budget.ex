@@ -11,7 +11,11 @@ defmodule FeedMe.Budgets.Budget do
     field :period_type, Ecto.Enum, values: [:weekly, :monthly, :custom]
     field :amount, :decimal
     field :currency, :string, default: "USD"
-    field :ai_authority, Ecto.Enum, values: [:recommend, :auto_add, :auto_purchase], default: :recommend
+
+    field :ai_authority, Ecto.Enum,
+      values: [:recommend, :auto_add, :auto_purchase],
+      default: :recommend
+
     field :alert_threshold, :decimal
     field :rollover_enabled, :boolean, default: false
     field :start_date, :date

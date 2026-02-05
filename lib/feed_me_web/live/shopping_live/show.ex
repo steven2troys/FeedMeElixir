@@ -154,11 +154,11 @@ defmodule FeedMeWeb.ShoppingLive.Show do
     ~H"""
     <div class="mx-auto max-w-2xl">
       <.header>
-        <%= @list.name %>
+        {@list.name}
         <:subtitle>
-          <%= length(@unchecked) %> items remaining
+          {length(@unchecked)} items remaining
           <%= if length(@checked) > 0 do %>
-            · <%= length(@checked) %> checked
+            · {length(@checked)} checked
           <% end %>
         </:subtitle>
         <:actions>
@@ -167,7 +167,10 @@ defmodule FeedMeWeb.ShoppingLive.Show do
               <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
                 <.icon name="hero-ellipsis-vertical" class="size-5" />
               </div>
-              <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+              <ul
+                tabindex="0"
+                class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52"
+              >
                 <%= unless @list.add_to_pantry do %>
                   <li>
                     <button phx-click="transfer_to_pantry">
@@ -228,14 +231,14 @@ defmodule FeedMeWeb.ShoppingLive.Show do
                 phx-value-id={item.id}
               />
               <div class="flex-1">
-                <span class="font-medium"><%= item.name %></span>
+                <span class="font-medium">{item.name}</span>
                 <%= if item.quantity && Decimal.compare(item.quantity, Decimal.new(1)) != :eq do %>
                   <span class="text-base-content/70 text-sm ml-2">
-                    (<%= Decimal.to_string(item.quantity) %><%= if item.unit, do: " #{item.unit}" %>)
+                    ({Decimal.to_string(item.quantity)}{if item.unit, do: " #{item.unit}"})
                   </span>
                 <% end %>
                 <%= if item.category do %>
-                  <span class="badge badge-sm badge-ghost ml-2"><%= item.category.name %></span>
+                  <span class="badge badge-sm badge-ghost ml-2">{item.category.name}</span>
                 <% end %>
               </div>
               <button
@@ -253,7 +256,7 @@ defmodule FeedMeWeb.ShoppingLive.Show do
       <%= if length(@checked) > 0 do %>
         <div class="mt-8">
           <h3 class="text-sm font-semibold text-base-content/70 mb-2">
-            Checked (<%= length(@checked) %>)
+            Checked ({length(@checked)})
           </h3>
           <div class="space-y-2 opacity-60">
             <%= for item <- @checked do %>
@@ -267,7 +270,7 @@ defmodule FeedMeWeb.ShoppingLive.Show do
                     phx-value-id={item.id}
                   />
                   <div class="flex-1">
-                    <span class="line-through"><%= item.name %></span>
+                    <span class="line-through">{item.name}</span>
                   </div>
                   <button
                     phx-click="delete_item"

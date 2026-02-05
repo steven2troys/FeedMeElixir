@@ -60,7 +60,11 @@ defmodule FeedMe.Pantry.Item do
   """
   def needs_restock?(%__MODULE__{always_in_stock: false}), do: false
 
-  def needs_restock?(%__MODULE__{always_in_stock: true, quantity: qty, restock_threshold: threshold}) do
+  def needs_restock?(%__MODULE__{
+        always_in_stock: true,
+        quantity: qty,
+        restock_threshold: threshold
+      }) do
     threshold = threshold || Decimal.new(0)
     Decimal.compare(qty, threshold) != :gt
   end

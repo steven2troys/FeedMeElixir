@@ -93,7 +93,7 @@ defmodule FeedMeWeb.ShoppingLive.Index do
     <div class="mx-auto max-w-4xl">
       <.header>
         Shopping Lists
-        <:subtitle><%= @household.name %></:subtitle>
+        <:subtitle>{@household.name}</:subtitle>
         <:actions>
           <button phx-click="add_restock_items" class="btn btn-ghost btn-sm">
             <.icon name="hero-arrow-path" class="size-4" /> Add Restock Items
@@ -125,7 +125,7 @@ defmodule FeedMeWeb.ShoppingLive.Index do
                     <%= if list.is_main do %>
                       <span class="badge badge-primary">Main</span>
                     <% end %>
-                    <span class="font-medium"><%= list.name %></span>
+                    <span class="font-medium">{list.name}</span>
                     <%= if list.add_to_pantry do %>
                       <span class="badge badge-sm badge-accent">auto-pantry</span>
                     <% end %>
@@ -135,7 +135,7 @@ defmodule FeedMeWeb.ShoppingLive.Index do
                       list.status == :completed && "badge-info",
                       list.status == :archived && "badge-ghost"
                     ]}>
-                      <%= list.status %>
+                      {list.status}
                     </span>
                   </div>
                   <%= unless list.is_main do %>

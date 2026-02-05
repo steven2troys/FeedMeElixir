@@ -16,7 +16,9 @@ defmodule FeedMe.Repo.Migrations.CreateRecipes do
       add :is_favorite, :boolean, default: false
       add :tags, {:array, :string}, default: []
 
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :created_by_id, references(:users, type: :binary_id, on_delete: :nilify_all)
 
       timestamps(type: :utc_datetime)
@@ -65,11 +67,14 @@ defmodule FeedMe.Repo.Migrations.CreateRecipes do
       add :id, :binary_id, primary_key: true
       add :servings_made, :integer
       add :notes, :text
-      add :rating, :integer  # 1-5 stars
+      # 1-5 stars
+      add :rating, :integer
 
       add :recipe_id, references(:recipes, type: :binary_id, on_delete: :delete_all), null: false
       add :cooked_by_id, references(:users, type: :binary_id, on_delete: :nilify_all)
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
 
       timestamps(type: :utc_datetime, updated_at: false)
     end

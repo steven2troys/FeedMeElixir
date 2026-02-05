@@ -89,7 +89,7 @@ defmodule FeedMeWeb.ProfileLive.Edit do
       <.header>
         Taste Profile
         <:subtitle>
-          Manage your dietary preferences for <%= @household.name %>
+          Manage your dietary preferences for {@household.name}
         </:subtitle>
       </.header>
 
@@ -144,14 +144,14 @@ defmodule FeedMeWeb.ProfileLive.Edit do
     ~H"""
     <div class="space-y-3">
       <div>
-        <h3 class="font-semibold"><%= @title %></h3>
-        <p class="text-sm text-base-content/70"><%= @description %></p>
+        <h3 class="font-semibold">{@title}</h3>
+        <p class="text-sm text-base-content/70">{@description}</p>
       </div>
 
       <div class="flex flex-wrap gap-2">
         <%= for item <- @items do %>
           <span class="badge badge-lg gap-1">
-            <%= item %>
+            {item}
             <button
               type="button"
               phx-click="remove_item"

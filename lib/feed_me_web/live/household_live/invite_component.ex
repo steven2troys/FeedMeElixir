@@ -9,9 +9,9 @@ defmodule FeedMeWeb.HouseholdLive.InviteComponent do
     ~H"""
     <div>
       <.header>
-        <%= @title %>
+        {@title}
         <:subtitle>
-          Send an invitation to join <%= @household.name %>
+          Send an invitation to join {@household.name}
         </:subtitle>
       </.header>
 

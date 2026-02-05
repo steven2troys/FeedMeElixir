@@ -41,8 +41,11 @@ defmodule FeedMe.RecipesTest do
     end
 
     test "list_recipes/2 filters by tag", %{household: household} do
-      recipe1 = RecipesFixtures.recipe_fixture(household, %{title: "Quick Meal", tags: ["quick", "easy"]})
-      _recipe2 = RecipesFixtures.recipe_fixture(household, %{title: "Slow Cook", tags: ["slow", "weekend"]})
+      recipe1 =
+        RecipesFixtures.recipe_fixture(household, %{title: "Quick Meal", tags: ["quick", "easy"]})
+
+      _recipe2 =
+        RecipesFixtures.recipe_fixture(household, %{title: "Slow Cook", tags: ["slow", "weekend"]})
 
       results = Recipes.list_recipes(household.id, tag: "quick")
       assert length(results) == 1
@@ -136,7 +139,10 @@ defmodule FeedMe.RecipesTest do
 
     test "update_ingredient/2 updates an ingredient", %{recipe: recipe} do
       ingredient = RecipesFixtures.ingredient_fixture(recipe)
-      assert {:ok, %Ingredient{} = updated} = Recipes.update_ingredient(ingredient, %{name: "Updated"})
+
+      assert {:ok, %Ingredient{} = updated} =
+               Recipes.update_ingredient(ingredient, %{name: "Updated"})
+
       assert updated.name == "Updated"
     end
 
@@ -158,7 +164,12 @@ defmodule FeedMe.RecipesTest do
     end
 
     test "create_photo/1 adds a photo to recipe", %{recipe: recipe} do
-      attrs = %{url: "https://example.com/photo.jpg", caption: "Finished dish", recipe_id: recipe.id}
+      attrs = %{
+        url: "https://example.com/photo.jpg",
+        caption: "Finished dish",
+        recipe_id: recipe.id
+      }
+
       assert {:ok, %Photo{} = photo} = Recipes.create_photo(attrs)
       assert photo.url == "https://example.com/photo.jpg"
       assert photo.recipe_id == recipe.id
@@ -181,7 +192,11 @@ defmodule FeedMe.RecipesTest do
       %{user: user, household: household, recipe: recipe}
     end
 
-    test "cook_recipe/3 creates a cooking log", %{recipe: recipe, household: household, user: user} do
+    test "cook_recipe/3 creates a cooking log", %{
+      recipe: recipe,
+      household: household,
+      user: user
+    } do
       assert {:ok, %CookingLog{} = log} = Recipes.cook_recipe(recipe, user, servings_made: 4)
       assert log.recipe_id == recipe.id
       assert log.household_id == household.id
@@ -196,9 +211,14 @@ defmodule FeedMe.RecipesTest do
       assert log.notes == "Delicious!"
     end
 
-    test "cook_recipe/3 decrements pantry items", %{recipe: recipe, household: household, user: user} do
+    test "cook_recipe/3 decrements pantry items", %{
+      recipe: recipe,
+      household: household,
+      user: user
+    } do
       # Create pantry item with quantity
-      pantry_item = PantryFixtures.item_fixture(household, %{name: "Chicken", quantity: Decimal.new("10")})
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Chicken", quantity: Decimal.new("10")})
 
       # Add ingredient linked to pantry item (2 units per serving, recipe serves 4)
       RecipesFixtures.ingredient_fixture(recipe, %{
@@ -218,9 +238,14 @@ defmodule FeedMe.RecipesTest do
       assert Decimal.equal?(updated_pantry.quantity, Decimal.new("8"))
     end
 
-    test "cook_recipe/3 scales ingredient amounts", %{recipe: recipe, household: household, user: user} do
+    test "cook_recipe/3 scales ingredient amounts", %{
+      recipe: recipe,
+      household: household,
+      user: user
+    } do
       # Recipe serves 4, we'll cook 2 servings (half)
-      pantry_item = PantryFixtures.item_fixture(household, %{name: "Rice", quantity: Decimal.new("10")})
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Rice", quantity: Decimal.new("10")})
 
       # 4 cups for 4 servings = 1 cup per serving
       RecipesFixtures.ingredient_fixture(recipe, %{
@@ -239,7 +264,11 @@ defmodule FeedMe.RecipesTest do
       assert Decimal.equal?(updated_pantry.quantity, Decimal.new("8"))
     end
 
-    test "list_cooking_logs/2 returns recent logs", %{recipe: recipe, household: household, user: user} do
+    test "list_cooking_logs/2 returns recent logs", %{
+      recipe: recipe,
+      household: household,
+      user: user
+    } do
       {:ok, _log1} = Recipes.cook_recipe(recipe, user, servings_made: 2)
       {:ok, _log2} = Recipes.cook_recipe(recipe, user, servings_made: 4)
 
@@ -256,12 +285,17 @@ defmodule FeedMe.RecipesTest do
       %{user: user, household: household, recipe: recipe}
     end
 
-    test "adds missing ingredients to shopping list", %{recipe: recipe, household: household, user: user} do
+    test "adds missing ingredients to shopping list", %{
+      recipe: recipe,
+      household: household,
+      user: user
+    } do
       # Add ingredient not in pantry
       RecipesFixtures.ingredient_fixture(recipe, %{name: "Onions", quantity: Decimal.new("2")})
       recipe = Recipes.get_recipe(recipe.id, household.id)
 
-      {:ok, %{added: added, already_have: have}} = Recipes.add_missing_to_list(recipe, household.id, user)
+      {:ok, %{added: added, already_have: have}} =
+        Recipes.add_missing_to_list(recipe, household.id, user)
 
       assert added == 1
       assert have == 0
@@ -273,9 +307,14 @@ defmodule FeedMe.RecipesTest do
       assert hd(items).name == "Onions"
     end
 
-    test "skips ingredients already in pantry", %{recipe: recipe, household: household, user: user} do
+    test "skips ingredients already in pantry", %{
+      recipe: recipe,
+      household: household,
+      user: user
+    } do
       # Create pantry item with sufficient quantity
-      pantry_item = PantryFixtures.item_fixture(household, %{name: "Salt", quantity: Decimal.new("10")})
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Salt", quantity: Decimal.new("10")})
 
       # Add ingredient linked to pantry item
       RecipesFixtures.ingredient_fixture(recipe, %{
@@ -286,15 +325,21 @@ defmodule FeedMe.RecipesTest do
 
       recipe = Recipes.get_recipe(recipe.id, household.id)
 
-      {:ok, %{added: added, already_have: have}} = Recipes.add_missing_to_list(recipe, household.id, user)
+      {:ok, %{added: added, already_have: have}} =
+        Recipes.add_missing_to_list(recipe, household.id, user)
 
       assert added == 0
       assert have == 1
     end
 
-    test "adds items with insufficient pantry quantity", %{recipe: recipe, household: household, user: user} do
+    test "adds items with insufficient pantry quantity", %{
+      recipe: recipe,
+      household: household,
+      user: user
+    } do
       # Create pantry item with less than needed
-      pantry_item = PantryFixtures.item_fixture(household, %{name: "Butter", quantity: Decimal.new("1")})
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Butter", quantity: Decimal.new("1")})
 
       # Recipe needs 3 but we only have 1
       RecipesFixtures.ingredient_fixture(recipe, %{
@@ -305,7 +350,8 @@ defmodule FeedMe.RecipesTest do
 
       recipe = Recipes.get_recipe(recipe.id, household.id)
 
-      {:ok, %{added: added, already_have: have}} = Recipes.add_missing_to_list(recipe, household.id, user)
+      {:ok, %{added: added, already_have: have}} =
+        Recipes.add_missing_to_list(recipe, household.id, user)
 
       assert added == 1
       assert have == 0

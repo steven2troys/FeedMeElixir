@@ -36,10 +36,19 @@ defmodule FeedMe.Recipes do
 
     query =
       case Keyword.get(opts, :order_by) do
-        :title -> order_by(query, [r], asc: r.title)
-        :newest -> order_by(query, [r], desc: r.inserted_at)
-        :total_time -> order_by(query, [r], asc: coalesce(r.prep_time_minutes, 0) + coalesce(r.cook_time_minutes, 0))
-        _ -> order_by(query, [r], asc: r.title)
+        :title ->
+          order_by(query, [r], asc: r.title)
+
+        :newest ->
+          order_by(query, [r], desc: r.inserted_at)
+
+        :total_time ->
+          order_by(query, [r],
+            asc: coalesce(r.prep_time_minutes, 0) + coalesce(r.cook_time_minutes, 0)
+          )
+
+        _ ->
+          order_by(query, [r], asc: r.title)
       end
 
     Repo.all(query)
@@ -213,7 +222,11 @@ defmodule FeedMe.Recipes do
   """
   def cook_recipe(%Recipe{} = recipe, user, opts \\ []) do
     servings_made = Keyword.get(opts, :servings_made) || recipe.servings || 1
-    multiplier = if recipe.servings, do: Decimal.div(Decimal.new(servings_made), Decimal.new(recipe.servings)), else: Decimal.new(1)
+
+    multiplier =
+      if recipe.servings,
+        do: Decimal.div(Decimal.new(servings_made), Decimal.new(recipe.servings)),
+        else: Decimal.new(1)
 
     recipe = Repo.preload(recipe, ingredients: :pantry_item)
 
@@ -302,7 +315,7 @@ defmodule FeedMe.Recipes do
       |> Enum.filter(& &1.pantry_item_id)
       |> Enum.map(fn ing ->
         pantry_item = Pantry.get_item(ing.pantry_item_id)
-        {ing.id, pantry_item && pantry_item.quantity || Decimal.new(0)}
+        {ing.id, (pantry_item && pantry_item.quantity) || Decimal.new(0)}
       end)
       |> Map.new()
 

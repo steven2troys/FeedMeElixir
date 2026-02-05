@@ -22,7 +22,7 @@ defmodule FeedMeWeb.HouseholdLive.Show do
             @role == :admin && "badge-primary",
             @role == :member && "badge-neutral"
           ]}>
-            You are an <%= @role %>
+            You are an {@role}
           </span>
         </:subtitle>
       </.header>
@@ -86,8 +86,8 @@ defmodule FeedMeWeb.HouseholdLive.Show do
               <.icon name={@icon} class="h-7 w-7 text-base-content/50" />
             </div>
             <div>
-              <h3 class="card-title text-base text-base-content/70"><%= @title %></h3>
-              <p class="text-sm text-base-content/50"><%= @description %></p>
+              <h3 class="card-title text-base text-base-content/70">{@title}</h3>
+              <p class="text-sm text-base-content/50">{@description}</p>
             </div>
           </div>
           <p class="mt-2 text-xs text-base-content/40">Coming soon</p>
@@ -102,8 +102,8 @@ defmodule FeedMeWeb.HouseholdLive.Show do
                 <.icon name={@icon} class="h-7 w-7 text-primary" />
               </div>
               <div>
-                <h3 class="card-title text-base text-base-content"><%= @title %></h3>
-                <p class="text-sm text-base-content/60"><%= @description %></p>
+                <h3 class="card-title text-base text-base-content">{@title}</h3>
+                <p class="text-sm text-base-content/60">{@description}</p>
               </div>
             </div>
           </div>

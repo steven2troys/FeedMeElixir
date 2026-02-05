@@ -13,7 +13,9 @@ defmodule FeedMe.Repo.Migrations.CreateHouseholds do
       add :id, :binary_id, primary_key: true
       add :role, :string, null: false, default: "member"
       add :user_id, references(:users, type: :binary_id, on_delete: :delete_all), null: false
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
 
       timestamps(type: :utc_datetime)
     end
@@ -29,7 +31,10 @@ defmodule FeedMe.Repo.Migrations.CreateHouseholds do
       add :role, :string, null: false, default: "member"
       add :expires_at, :utc_datetime, null: false
       add :accepted_at, :utc_datetime
-      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all), null: false
+
+      add :household_id, references(:households, type: :binary_id, on_delete: :delete_all),
+        null: false
+
       add :invited_by_id, references(:users, type: :binary_id, on_delete: :nilify_all)
 
       timestamps(type: :utc_datetime)

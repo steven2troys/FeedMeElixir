@@ -137,7 +137,10 @@ defmodule FeedMe.ShoppingTest do
       %{user: user, household: household}
     end
 
-    test "add_from_pantry/4 adds a pantry item to shopping list", %{household: household, user: user} do
+    test "add_from_pantry/4 adds a pantry item to shopping list", %{
+      household: household,
+      user: user
+    } do
       pantry_item = PantryFixtures.item_fixture(household, %{name: "Apples", unit: "lbs"})
       list = Shopping.get_or_create_main_list(household.id)
 
@@ -149,7 +152,10 @@ defmodule FeedMe.ShoppingTest do
       assert item.pantry_item_id == pantry_item.id
     end
 
-    test "add_restock_items_to_main_list/2 adds items needing restock", %{household: household, user: user} do
+    test "add_restock_items_to_main_list/2 adds items needing restock", %{
+      household: household,
+      user: user
+    } do
       _normal_item = PantryFixtures.item_fixture(household, %{name: "Normal"})
 
       _restock_item =
@@ -202,12 +208,20 @@ defmodule FeedMe.ShoppingTest do
     test "checking item on add_to_pantry list queues item for pantry sync",
          %{household: household, user: user} do
       Application.put_env(:feed_me, FeedMe.Pantry.Sync, debounce_ms: 60_000, enabled: true)
-      on_exit(fn -> Application.put_env(:feed_me, FeedMe.Pantry.Sync, debounce_ms: 0, enabled: false) end)
 
-      pantry_item = PantryFixtures.item_fixture(household, %{name: "Milk", quantity: Decimal.new("2")})
+      on_exit(fn ->
+        Application.put_env(:feed_me, FeedMe.Pantry.Sync, debounce_ms: 0, enabled: false)
+      end)
+
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Milk", quantity: Decimal.new("2")})
 
       {:ok, list} =
-        Shopping.create_list(%{name: "Grocery List", household_id: household.id, add_to_pantry: true})
+        Shopping.create_list(%{
+          name: "Grocery List",
+          household_id: household.id,
+          add_to_pantry: true
+        })
 
       {:ok, item} = Shopping.add_from_pantry(list.id, pantry_item, Decimal.new("3"), user)
 
@@ -225,12 +239,20 @@ defmodule FeedMe.ShoppingTest do
     test "checking item on non-add_to_pantry list does NOT queue for sync",
          %{household: household, user: user} do
       Application.put_env(:feed_me, FeedMe.Pantry.Sync, debounce_ms: 60_000, enabled: true)
-      on_exit(fn -> Application.put_env(:feed_me, FeedMe.Pantry.Sync, debounce_ms: 0, enabled: false) end)
 
-      pantry_item = PantryFixtures.item_fixture(household, %{name: "Eggs", quantity: Decimal.new("6")})
+      on_exit(fn ->
+        Application.put_env(:feed_me, FeedMe.Pantry.Sync, debounce_ms: 0, enabled: false)
+      end)
+
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Eggs", quantity: Decimal.new("6")})
 
       {:ok, list} =
-        Shopping.create_list(%{name: "Party List", household_id: household.id, add_to_pantry: false})
+        Shopping.create_list(%{
+          name: "Party List",
+          household_id: household.id,
+          add_to_pantry: false
+        })
 
       {:ok, item} = Shopping.add_from_pantry(list.id, pantry_item, Decimal.new("2"), user)
 
@@ -246,12 +268,20 @@ defmodule FeedMe.ShoppingTest do
     test "unchecking item dequeues it from sync",
          %{household: household, user: user} do
       Application.put_env(:feed_me, FeedMe.Pantry.Sync, debounce_ms: 60_000, enabled: true)
-      on_exit(fn -> Application.put_env(:feed_me, FeedMe.Pantry.Sync, debounce_ms: 0, enabled: false) end)
 
-      pantry_item = PantryFixtures.item_fixture(household, %{name: "Butter", quantity: Decimal.new("1")})
+      on_exit(fn ->
+        Application.put_env(:feed_me, FeedMe.Pantry.Sync, debounce_ms: 0, enabled: false)
+      end)
+
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Butter", quantity: Decimal.new("1")})
 
       {:ok, list} =
-        Shopping.create_list(%{name: "Grocery List", household_id: household.id, add_to_pantry: true})
+        Shopping.create_list(%{
+          name: "Grocery List",
+          household_id: household.id,
+          add_to_pantry: true
+        })
 
       {:ok, item} = Shopping.add_from_pantry(list.id, pantry_item, Decimal.new("2"), user)
 
@@ -275,7 +305,11 @@ defmodule FeedMe.ShoppingTest do
     test "checking item without pantry_item_id and no matching pantry item does not error",
          %{household: household, user: user} do
       {:ok, list} =
-        Shopping.create_list(%{name: "Grocery List", household_id: household.id, add_to_pantry: true})
+        Shopping.create_list(%{
+          name: "Grocery List",
+          household_id: household.id,
+          add_to_pantry: true
+        })
 
       {:ok, item} =
         Shopping.create_item(%{
@@ -325,7 +359,10 @@ defmodule FeedMe.ShoppingTest do
       assert item.pantry_item_id == pantry_item.id
     end
 
-    test "create_item does not overwrite existing pantry_item_id", %{household: household, user: user} do
+    test "create_item does not overwrite existing pantry_item_id", %{
+      household: household,
+      user: user
+    } do
       _pantry_item_a = PantryFixtures.item_fixture(household, %{name: "Milk"})
       pantry_item_b = PantryFixtures.item_fixture(household, %{name: "Whole Milk"})
       {:ok, list} = Shopping.create_list(%{name: "Grocery List", household_id: household.id})

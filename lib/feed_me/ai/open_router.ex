@@ -238,6 +238,7 @@ defmodule FeedMe.AI.OpenRouter do
 
     # Known model families that support tools
     model_id = model["id"] || ""
+
     known_tool_models = [
       "anthropic/claude-3",
       "anthropic/claude-3.5",
@@ -260,11 +261,13 @@ defmodule FeedMe.AI.OpenRouter do
     modality = arch["modality"] || ""
 
     # Check if modality includes image input
-    has_image_input = String.contains?(modality, "image") or
-                      String.contains?(modality, "multimodal")
+    has_image_input =
+      String.contains?(modality, "image") or
+        String.contains?(modality, "multimodal")
 
     # Known vision models
     model_id = model["id"] || ""
+
     known_vision_models = [
       "anthropic/claude-3",
       "openai/gpt-4-vision",

@@ -68,7 +68,11 @@ defmodule FeedMeWeb.RecipeLive.Show do
     {:noreply, put_flash(socket, :info, message)}
   end
 
-  def handle_event("cook_confirmed", %{"servings" => servings, "rating" => rating, "notes" => notes}, socket) do
+  def handle_event(
+        "cook_confirmed",
+        %{"servings" => servings, "rating" => rating, "notes" => notes},
+        socket
+      ) do
     user = socket.assigns.current_scope.user
 
     opts = [
@@ -85,7 +89,9 @@ defmodule FeedMeWeb.RecipeLive.Show do
          socket
          |> put_flash(:info, "Enjoy your meal! Pantry updated.")
          |> assign(:recipe, recipe)
-         |> push_patch(to: ~p"/households/#{socket.assigns.household.id}/recipes/#{socket.assigns.recipe.id}")}
+         |> push_patch(
+           to: ~p"/households/#{socket.assigns.household.id}/recipes/#{socket.assigns.recipe.id}"
+         )}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Something went wrong")}
@@ -97,23 +103,23 @@ defmodule FeedMeWeb.RecipeLive.Show do
     ~H"""
     <div class="mx-auto max-w-3xl">
       <.header>
-        <%= @recipe.title %>
+        {@recipe.title}
         <:subtitle>
           <div class="flex flex-wrap gap-2 mt-2">
             <%= if Recipe.total_time(@recipe) > 0 do %>
               <span class="badge badge-ghost">
                 <.icon name="hero-clock" class="size-4 mr-1" />
-                <%= Recipe.total_time(@recipe) %> min total
+                {Recipe.total_time(@recipe)} min total
               </span>
             <% end %>
             <%= if @recipe.servings do %>
               <span class="badge badge-ghost">
                 <.icon name="hero-users" class="size-4 mr-1" />
-                <%= @recipe.servings %> servings
+                {@recipe.servings} servings
               </span>
             <% end %>
             <%= for tag <- @recipe.tags do %>
-              <span class="badge badge-sm"><%= tag %></span>
+              <span class="badge badge-sm">{tag}</span>
             <% end %>
           </div>
         </:subtitle>
@@ -141,7 +147,11 @@ defmodule FeedMeWeb.RecipeLive.Show do
         <div class="mt-6 carousel w-full rounded-lg">
           <%= for {photo, idx} <- Enum.with_index(@recipe.photos) do %>
             <div id={"slide-#{idx}"} class="carousel-item relative w-full">
-              <img src={photo.url} class="w-full max-h-96 object-cover" alt={photo.caption || @recipe.title} />
+              <img
+                src={photo.url}
+                class="w-full max-h-96 object-cover"
+                alt={photo.caption || @recipe.title}
+              />
             </div>
           <% end %>
         </div>
@@ -149,7 +159,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
 
       <%= if @recipe.description do %>
         <div class="mt-6">
-          <p class="text-base-content/80"><%= @recipe.description %></p>
+          <p class="text-base-content/80">{@recipe.description}</p>
         </div>
       <% end %>
 
@@ -161,13 +171,14 @@ defmodule FeedMeWeb.RecipeLive.Show do
               <li class="flex items-start gap-2">
                 <span class="badge badge-sm badge-ghost mt-0.5">
                   <%= if ingredient.quantity do %>
-                    <%= Decimal.to_string(ingredient.quantity) %><%= if ingredient.unit, do: " #{ingredient.unit}" %>
+                    {Decimal.to_string(ingredient.quantity)}{if ingredient.unit,
+                      do: " #{ingredient.unit}"}
                   <% else %>
                     -
                   <% end %>
                 </span>
                 <span class={ingredient.optional && "text-base-content/70"}>
-                  <%= ingredient.name %>
+                  {ingredient.name}
                   <%= if ingredient.optional do %>
                     <span class="text-xs">(optional)</span>
                   <% end %>
@@ -182,7 +193,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
           <div class="prose prose-sm max-w-none">
             <%= if @recipe.instructions do %>
               <%= for {step, idx} <- @recipe.instructions |> String.split("\n") |> Enum.with_index(1) do %>
-                <p><strong><%= idx %>.</strong> <%= step %></p>
+                <p><strong>{idx}.</strong> {step}</p>
               <% end %>
             <% else %>
               <p class="text-base-content/50">No instructions added yet.</p>
@@ -195,9 +206,11 @@ defmodule FeedMeWeb.RecipeLive.Show do
         <div class="mt-8 text-sm text-base-content/70">
           Source:
           <%= if @recipe.source_url do %>
-            <a href={@recipe.source_url} target="_blank" class="link"><%= @recipe.source_name || @recipe.source_url %></a>
+            <a href={@recipe.source_url} target="_blank" class="link">
+              {@recipe.source_name || @recipe.source_url}
+            </a>
           <% else %>
-            <%= @recipe.source_name %>
+            {@recipe.source_name}
           <% end %>
         </div>
       <% end %>
@@ -210,7 +223,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
               <div class="flex items-center justify-between py-2 border-b border-base-200">
                 <div>
                   <span class="text-sm">
-                    Cooked by <%= log.cooked_by && log.cooked_by.name || "Unknown" %>
+                    Cooked by {(log.cooked_by && log.cooked_by.name) || "Unknown"}
                   </span>
                   <%= if log.rating do %>
                     <span class="ml-2">
@@ -221,7 +234,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
                   <% end %>
                 </div>
                 <span class="text-sm text-base-content/70">
-                  <%= Calendar.strftime(log.inserted_at, "%b %d, %Y") %>
+                  {Calendar.strftime(log.inserted_at, "%b %d, %Y")}
                 </span>
               </div>
             <% end %>
@@ -256,7 +269,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
         on_cancel={JS.patch(~p"/households/#{@household.id}/recipes/#{@recipe.id}")}
       >
         <.header>
-          Cook <%= @recipe.title %>
+          Cook {@recipe.title}
           <:subtitle>This will update your pantry inventory</:subtitle>
         </.header>
 
@@ -273,7 +286,13 @@ defmodule FeedMeWeb.RecipeLive.Show do
             type="select"
             label="Rating"
             prompt="Rate this meal..."
-            options={[{"1 star", "1"}, {"2 stars", "2"}, {"3 stars", "3"}, {"4 stars", "4"}, {"5 stars", "5"}]}
+            options={[
+              {"1 star", "1"},
+              {"2 stars", "2"},
+              {"3 stars", "3"},
+              {"4 stars", "4"},
+              {"5 stars", "5"}
+            ]}
           />
           <.input
             name="notes"

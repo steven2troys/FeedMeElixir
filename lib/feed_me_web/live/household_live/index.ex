@@ -79,13 +79,13 @@ defmodule FeedMeWeb.HouseholdLive.Index do
               >
                 <div class="card-body p-5">
                   <div class="flex items-center justify-between">
-                    <h3 class="card-title text-base-content"><%= household.name %></h3>
+                    <h3 class="card-title text-base-content">{household.name}</h3>
                     <span class={[
                       "badge",
                       role == :admin && "badge-primary",
                       role == :member && "badge-neutral"
                     ]}>
-                      <%= role %>
+                      {role}
                     </span>
                   </div>
                 </div>

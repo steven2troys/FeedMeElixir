@@ -137,7 +137,10 @@ defmodule FeedMe.Pantry.Sync do
 
       {entry, state} ->
         if entry.items != [] do
-          Logger.info("Pantry.Sync: Flushing #{length(entry.items)} items for household #{household_id}")
+          Logger.info(
+            "Pantry.Sync: Flushing #{length(entry.items)} items for household #{household_id}"
+          )
+
           Task.Supervisor.start_child(FeedMe.Pantry.SyncTaskSupervisor, fn ->
             do_sync(household_id, entry.items)
           end)
@@ -170,7 +173,10 @@ defmodule FeedMe.Pantry.Sync do
       run_ai_loop(decrypted_key, messages, tools, model, household_id, 0)
     else
       nil ->
-        Logger.warning("Pantry.Sync: No API key for household #{household_id}, dropping #{length(items)} items")
+        Logger.warning(
+          "Pantry.Sync: No API key for household #{household_id}, dropping #{length(items)} items"
+        )
+
         :ok
     end
   end
@@ -202,7 +208,10 @@ defmodule FeedMe.Pantry.Sync do
         end
 
       {:error, reason} ->
-        Logger.warning("Pantry.Sync: AI call failed for household #{household_id}: #{inspect(reason)}")
+        Logger.warning(
+          "Pantry.Sync: AI call failed for household #{household_id}: #{inspect(reason)}"
+        )
+
         :ok
     end
   end
@@ -230,7 +239,9 @@ defmodule FeedMe.Pantry.Sync do
         "Error: Pantry item #{pantry_item_id} not found"
 
       item ->
-        case Pantry.add_to_item(item, quantity_to_add, nil, reason: "Auto-added from shopping list") do
+        case Pantry.add_to_item(item, quantity_to_add, nil,
+               reason: "Auto-added from shopping list"
+             ) do
           {:ok, updated} ->
             "Updated #{updated.name}: added #{quantity_to_add}, new quantity: #{updated.quantity}"
 
@@ -244,8 +255,12 @@ defmodule FeedMe.Pantry.Sync do
   def execute_tool("create_pantry_item", args, household_id) do
     category_id =
       case args["category"] do
-        nil -> nil
-        "" -> nil
+        nil ->
+          nil
+
+        "" ->
+          nil
+
         category_name ->
           case Pantry.find_or_create_category(household_id, category_name) do
             {:ok, cat} -> cat.id
@@ -287,6 +302,7 @@ defmodule FeedMe.Pantry.Sync do
         pantry_items
         |> Enum.map(fn item ->
           category_name = if item.category, do: item.category.name, else: "Uncategorized"
+
           "- ID: #{item.id} | \"#{item.name}\" | #{item.quantity} #{item.unit || "units"} | #{category_name}"
         end)
         |> Enum.join("\n")
@@ -351,8 +367,14 @@ defmodule FeedMe.Pantry.Sync do
           parameters: %{
             type: "object",
             properties: %{
-              pantry_item_id: %{type: "string", description: "The UUID of the existing pantry item to update"},
-              quantity_to_add: %{type: "number", description: "The quantity to add, converted to the pantry item's unit"},
+              pantry_item_id: %{
+                type: "string",
+                description: "The UUID of the existing pantry item to update"
+              },
+              quantity_to_add: %{
+                type: "number",
+                description: "The quantity to add, converted to the pantry item's unit"
+              },
               notes: %{type: "string", description: "Optional notes about the update"}
             },
             required: ["pantry_item_id", "quantity_to_add"]
@@ -369,8 +391,14 @@ defmodule FeedMe.Pantry.Sync do
             properties: %{
               name: %{type: "string", description: "Name of the pantry item"},
               quantity: %{type: "number", description: "Initial quantity"},
-              unit: %{type: "string", description: "Unit of measurement (e.g., lbs, kg, gallons, count)"},
-              category: %{type: "string", description: "Category name (e.g., Dairy, Produce, Meat & Seafood)"}
+              unit: %{
+                type: "string",
+                description: "Unit of measurement (e.g., lbs, kg, gallons, count)"
+              },
+              category: %{
+                type: "string",
+                description: "Category name (e.g., Dairy, Produce, Meat & Seafood)"
+              }
             },
             required: ["name", "quantity"]
           }
