@@ -1,30 +1,22 @@
 defmodule FeedMeWeb.ProfileLive.Edit do
   use FeedMeWeb, :live_view
 
-  alias FeedMe.Households
   alias FeedMe.Profiles
 
   @impl true
-  def mount(%{"household_id" => household_id}, _session, socket) do
+  def mount(_params, _session, socket) do
+    # household and role are set by HouseholdHooks
     user = socket.assigns.current_scope.user
+    household = socket.assigns.household
 
-    case Households.get_household_for_user(household_id, user) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Household not found or you don't have access")
-         |> push_navigate(to: ~p"/households")}
+    profile = Profiles.get_or_create_taste_profile(user.id, household.id)
 
-      %{household: household} ->
-        profile = Profiles.get_or_create_taste_profile(user.id, household.id)
-
-        {:ok,
-         socket
-         |> assign(:household, household)
-         |> assign(:profile, profile)
-         |> assign(:form, to_form(Profiles.change_taste_profile(profile)))
-         |> assign(:page_title, "Taste Profile")}
-    end
+    {:ok,
+     socket
+     |> assign(:active_tab, :profile)
+     |> assign(:profile, profile)
+     |> assign(:form, to_form(Profiles.change_taste_profile(profile)))
+     |> assign(:page_title, "Taste Profile")}
   end
 
   @impl true

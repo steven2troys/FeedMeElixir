@@ -123,12 +123,25 @@ defmodule FeedMe.AI do
 
   @doc """
   Creates a new conversation.
+
+  If no model is specified, uses the household's selected model.
   """
   def create_conversation(household_id, user, opts \\ []) do
+    # Get the household's selected model if not provided
+    model =
+      case Keyword.get(opts, :model) do
+        nil ->
+          household = FeedMe.Households.get_household(household_id)
+          household && household.selected_model
+
+        model ->
+          model
+      end
+
     attrs = %{
       household_id: household_id,
       started_by_id: user.id,
-      model: Keyword.get(opts, :model),
+      model: model,
       title: Keyword.get(opts, :title)
     }
 
@@ -205,6 +218,10 @@ defmodule FeedMe.AI do
       api_key ->
         decrypted_key = ApiKey.decrypt_key(api_key)
 
+        # Get the household's selected model
+        household = FeedMe.Households.get_household(household_id)
+        model = household && household.selected_model || default_model()
+
         # Save user message
         {:ok, _user_msg} =
           create_message(conversation.id, %{
@@ -219,7 +236,7 @@ defmodule FeedMe.AI do
         tools = Tools.definitions()
 
         # Make API request
-        case do_chat(decrypted_key, messages, tools, context, conversation, opts) do
+        case do_chat(decrypted_key, messages, tools, context, conversation, model, opts) do
           {:ok, response} ->
             touch_api_key(api_key)
             {:ok, response}
@@ -234,23 +251,23 @@ defmodule FeedMe.AI do
     end
   end
 
-  defp do_chat(api_key, messages, tools, context, conversation, opts) do
+  defp do_chat(api_key, messages, tools, context, conversation, model, opts) do
     stream = Keyword.get(opts, :stream, false)
     callback = Keyword.get(opts, :callback)
 
     if stream && callback do
-      do_streaming_chat(api_key, messages, tools, context, conversation, callback)
+      do_streaming_chat(api_key, messages, tools, context, conversation, model, callback)
     else
-      do_sync_chat(api_key, messages, tools, context, conversation)
+      do_sync_chat(api_key, messages, tools, context, conversation, model)
     end
   end
 
-  defp do_sync_chat(api_key, messages, tools, context, conversation) do
-    case OpenRouter.chat(api_key, messages, tools: tools) do
+  defp do_sync_chat(api_key, messages, tools, context, conversation, model) do
+    case OpenRouter.chat(api_key, messages, model: model, tools: tools) do
       {:ok, response} ->
         # Handle tool calls if present
         if response.tool_calls do
-          handle_tool_calls(api_key, messages, tools, response, context, conversation)
+          handle_tool_calls(api_key, messages, tools, response, context, conversation, model)
         else
           # Save assistant message
           {:ok, assistant_msg} =
@@ -271,7 +288,7 @@ defmodule FeedMe.AI do
     end
   end
 
-  defp do_streaming_chat(api_key, messages, tools, _context, conversation, callback) do
+  defp do_streaming_chat(api_key, messages, tools, _context, conversation, model, callback) do
     accumulated_content = Agent.start_link(fn -> "" end)
     {:ok, acc_pid} = accumulated_content
 
@@ -302,7 +319,7 @@ defmodule FeedMe.AI do
         callback.({:error, reason})
     end
 
-    OpenRouter.chat_stream(api_key, messages, stream_callback, tools: tools)
+    OpenRouter.chat_stream(api_key, messages, stream_callback, model: model, tools: tools)
 
     # Handle any tool calls that came through
     # (Tool calls in streaming are more complex, simplified here)
@@ -311,7 +328,7 @@ defmodule FeedMe.AI do
     :ok
   end
 
-  defp handle_tool_calls(api_key, messages, tools, response, context, conversation) do
+  defp handle_tool_calls(api_key, messages, tools, response, context, conversation, model) do
     # Save assistant message with tool calls
     {:ok, _} =
       create_message(conversation.id, %{
@@ -361,7 +378,7 @@ defmodule FeedMe.AI do
         ]
 
     # Make another request to get final response
-    case OpenRouter.chat(api_key, updated_messages, tools: tools) do
+    case OpenRouter.chat(api_key, updated_messages, model: model, tools: tools) do
       {:ok, final_response} ->
         {:ok, assistant_msg} =
           create_message(conversation.id, %{
@@ -382,16 +399,16 @@ defmodule FeedMe.AI do
     system = [%{role: :system, content: system_prompt()}]
 
     # Get conversation history
+    # Exclude tool messages and tool_calls to avoid cross-provider ID mismatches
     history =
       conversation
       |> Repo.preload(:messages)
       |> Map.get(:messages, [])
+      |> Enum.reject(fn msg -> msg.role == :tool end)
       |> Enum.map(fn msg ->
         %{
           role: msg.role,
-          content: msg.content,
-          tool_calls: msg.tool_calls,
-          tool_call_id: msg.tool_call_id
+          content: msg.content
         }
       end)
 

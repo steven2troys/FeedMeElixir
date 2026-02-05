@@ -8,38 +8,31 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
   alias FeedMe.Households
 
   @impl true
-  def mount(%{"household_id" => household_id}, _session, socket) do
-    user = socket.assigns.current_scope.user
+  def mount(_params, _session, socket) do
+    # household and role are set by HouseholdHooks
+    household = socket.assigns.household
+    role = socket.assigns.role
 
-    case Households.get_household_for_user(household_id, user) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Household not found")
-         |> push_navigate(to: ~p"/households")}
+    if role != :admin do
+      {:ok,
+       socket
+       |> put_flash(:error, "Only admins can manage API keys")
+       |> push_navigate(to: ~p"/households/#{household.id}")}
+    else
+      api_key = AI.get_api_key(household.id)
+      models = if api_key, do: load_models(household.id), else: []
 
-      %{household: household, role: role} ->
-        if role != :admin do
-          {:ok,
-           socket
-           |> put_flash(:error, "Only admins can manage API keys")
-           |> push_navigate(to: ~p"/households/#{household.id}")}
-        else
-          api_key = AI.get_api_key(household.id)
-          models = if api_key, do: load_models(household.id), else: []
-
-          {:ok,
-           socket
-           |> assign(:household, household)
-           |> assign(:api_key, api_key)
-           |> assign(:form, to_form(%{"api_key" => ""}))
-           |> assign(:validating, false)
-           |> assign(:models, models)
-           |> assign(:filtered_models, models)
-           |> assign(:model_search, "")
-           |> assign(:loading_models, false)
-           |> assign(:page_title, "API Key Settings")}
-        end
+      {:ok,
+       socket
+       |> assign(:active_tab, :settings)
+       |> assign(:api_key, api_key)
+       |> assign(:form, to_form(%{"api_key" => ""}))
+       |> assign(:validating, false)
+       |> assign(:models, models)
+       |> assign(:filtered_models, models)
+       |> assign(:model_search, "")
+       |> assign(:loading_models, false)
+       |> assign(:page_title, "API Key Settings")}
     end
   end
 
@@ -213,11 +206,30 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
     ~H"""
     <div class="mx-auto max-w-2xl">
       <.header>
-        API Key Settings
-        <:subtitle>Configure your AI provider API key</:subtitle>
+        AI Settings
+        <:subtitle>Configure your AI provider and model</:subtitle>
       </.header>
 
       <div class="mt-6 space-y-6">
+        <!-- Current Model Selection (shown prominently when API key exists) -->
+        <%= if @api_key && @api_key.is_valid do %>
+          <div class="card bg-primary/10 border-2 border-primary">
+            <div class="card-body">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-medium text-primary">Active AI Model</h3>
+                  <p class="text-xl font-semibold mt-1"><%= get_model_display_name(@household.selected_model, @models) %></p>
+                  <p class="text-sm text-base-content/60 font-mono"><%= @household.selected_model %></p>
+                </div>
+                <.icon name="hero-cpu-chip" class="h-10 w-10 text-primary" />
+              </div>
+              <p class="text-sm text-base-content/70 mt-2">
+                This model will be used for all new AI conversations.
+              </p>
+            </div>
+          </div>
+        <% end %>
+
         <div class="card bg-base-100 border border-base-200">
           <div class="card-body">
             <h3 class="card-title">OpenRouter API Key</h3>
@@ -280,24 +292,26 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
           </div>
         </div>
 
-        <div class="card bg-base-100 border border-base-200">
-          <div class="card-body">
-            <h3 class="card-title">How to get an API key</h3>
-            <ol class="list-decimal list-inside space-y-2 text-sm">
-              <li>Go to <a href="https://openrouter.ai" target="_blank" class="link">openrouter.ai</a></li>
-              <li>Create an account or sign in</li>
-              <li>Add credits to your account (starts at $5)</li>
-              <li>Go to Keys and create a new API key</li>
-              <li>Copy the key and paste it above</li>
-            </ol>
+        <%= if !@api_key do %>
+          <div class="card bg-base-100 border border-base-200">
+            <div class="card-body">
+              <h3 class="card-title">How to get an API key</h3>
+              <ol class="list-decimal list-inside space-y-2 text-sm">
+                <li>Go to <a href="https://openrouter.ai" target="_blank" class="link">openrouter.ai</a></li>
+                <li>Create an account or sign in</li>
+                <li>Add credits to your account (starts at $5)</li>
+                <li>Go to Keys and create a new API key</li>
+                <li>Copy the key and paste it above</li>
+              </ol>
+            </div>
           </div>
-        </div>
+        <% end %>
 
         <%= if @api_key do %>
           <div class="card bg-base-100 border border-base-200">
             <div class="card-body">
               <div class="flex items-center justify-between">
-                <h3 class="card-title">Select AI Model</h3>
+                <h3 class="card-title">Change AI Model</h3>
                 <button phx-click="refresh_models" class="btn btn-ghost btn-sm" disabled={@loading_models}>
                   <%= if @loading_models do %>
                     <span class="loading loading-spinner loading-sm"></span>
@@ -391,27 +405,17 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
             </div>
           </div>
         <% end %>
-
-        <div class="card bg-base-100 border border-base-200">
-          <div class="card-body">
-            <h3 class="card-title">Recommended Models</h3>
-            <p class="text-sm text-base-content/70 mb-4">
-              FeedMe works best with these AI models:
-            </p>
-            <ul class="space-y-2">
-              <%= for model <- AI.recommended_models() do %>
-                <li class="flex items-center gap-3">
-                  <span class="font-mono text-sm bg-base-200 px-2 py-1 rounded"><%= model.id %></span>
-                  <span class="text-sm text-base-content/70"><%= model.description %></span>
-                </li>
-              <% end %>
-            </ul>
-          </div>
-        </div>
       </div>
 
       <.back navigate={~p"/households/#{@household.id}"}>Back to household</.back>
     </div>
     """
+  end
+
+  defp get_model_display_name(model_id, models) do
+    case Enum.find(models, fn m -> m.id == model_id end) do
+      nil -> model_id |> String.split("/") |> List.last() |> String.replace("-", " ") |> String.split() |> Enum.map(&String.capitalize/1) |> Enum.join(" ")
+      model -> model.name
+    end
   end
 end

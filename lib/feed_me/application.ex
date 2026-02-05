@@ -14,6 +14,9 @@ defmodule FeedMe.Application do
       {Phoenix.PubSub, name: FeedMe.PubSub},
       # Start a worker by calling: FeedMe.Worker.start_link(arg)
       # {FeedMe.Worker, arg},
+      # Pantry sync (AI-powered batch pantry updates from shopping lists)
+      {Task.Supervisor, name: FeedMe.Pantry.SyncTaskSupervisor},
+      FeedMe.Pantry.Sync,
       # Start to serve requests, typically the last entry
       FeedMeWeb.Endpoint
     ]

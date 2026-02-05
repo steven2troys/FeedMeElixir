@@ -29,6 +29,11 @@ config :feed_me, FeedMe.Mailer, adapter: Swoosh.Adapters.Test
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 
+# Disable Pantry Sync in tests (start manually when needed)
+config :feed_me, FeedMe.Pantry.Sync,
+  debounce_ms: 0,
+  enabled: false
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

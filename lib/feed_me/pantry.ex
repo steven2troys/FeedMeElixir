@@ -184,6 +184,16 @@ defmodule FeedMe.Pantry do
   end
 
   @doc """
+  Finds an item by name (case-insensitive) within a household.
+  """
+  def find_item_by_name(name, household_id) do
+    Item
+    |> where([i], i.household_id == ^household_id and fragment("LOWER(?)", i.name) == ^String.downcase(name))
+    |> preload(:category)
+    |> Repo.one()
+  end
+
+  @doc """
   Gets an item by barcode.
   """
   def get_item_by_barcode(barcode, household_id) do

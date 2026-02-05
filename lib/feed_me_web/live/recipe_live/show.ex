@@ -1,36 +1,26 @@
 defmodule FeedMeWeb.RecipeLive.Show do
   use FeedMeWeb, :live_view
 
-  alias FeedMe.Households
   alias FeedMe.Recipes
   alias FeedMe.Recipes.Recipe
 
   @impl true
-  def mount(%{"household_id" => household_id, "id" => recipe_id}, _session, socket) do
-    user = socket.assigns.current_scope.user
+  def mount(%{"id" => recipe_id}, _session, socket) do
+    # household and role are set by HouseholdHooks
+    household = socket.assigns.household
+    recipe = Recipes.get_recipe(recipe_id, household.id)
 
-    case Households.get_household_for_user(household_id, user) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Household not found")
-         |> push_navigate(to: ~p"/households")}
-
-      %{household: household} ->
-        recipe = Recipes.get_recipe(recipe_id, household.id)
-
-        if recipe do
-          {:ok,
-           socket
-           |> assign(:household, household)
-           |> assign(:recipe, recipe)
-           |> assign(:page_title, recipe.title)}
-        else
-          {:ok,
-           socket
-           |> put_flash(:error, "Recipe not found")
-           |> push_navigate(to: ~p"/households/#{household.id}/recipes")}
-        end
+    if recipe do
+      {:ok,
+       socket
+       |> assign(:active_tab, :recipes)
+       |> assign(:recipe, recipe)
+       |> assign(:page_title, recipe.title)}
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "Recipe not found")
+       |> push_navigate(to: ~p"/households/#{household.id}/recipes")}
     end
   end
 
@@ -64,21 +54,18 @@ defmodule FeedMeWeb.RecipeLive.Show do
   def handle_event("add_to_list", _params, socket) do
     user = socket.assigns.current_scope.user
 
-    case Recipes.add_missing_to_list(socket.assigns.recipe, socket.assigns.household.id, user) do
-      {:ok, %{added: added, already_have: have}} ->
-        message =
-          cond do
-            added == 0 && have > 0 -> "You already have all the ingredients!"
-            added > 0 && have > 0 -> "Added #{added} items to shopping list (you have #{have})"
-            added > 0 -> "Added #{added} items to shopping list"
-            true -> "No ingredients to add"
-          end
+    {:ok, %{added: added, already_have: have}} =
+      Recipes.add_missing_to_list(socket.assigns.recipe, socket.assigns.household.id, user)
 
-        {:noreply, put_flash(socket, :info, message)}
+    message =
+      cond do
+        added == 0 && have > 0 -> "You already have all the ingredients!"
+        added > 0 && have > 0 -> "Added #{added} items to shopping list (you have #{have})"
+        added > 0 -> "Added #{added} items to shopping list"
+        true -> "No ingredients to add"
+      end
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to add ingredients")}
-    end
+    {:noreply, put_flash(socket, :info, message)}
   end
 
   def handle_event("cook_confirmed", %{"servings" => servings, "rating" => rating, "notes" => notes}, socket) do

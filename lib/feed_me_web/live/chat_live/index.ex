@@ -5,31 +5,21 @@ defmodule FeedMeWeb.ChatLive.Index do
   use FeedMeWeb, :live_view
 
   alias FeedMe.AI
-  alias FeedMe.Households
 
   @impl true
-  def mount(%{"household_id" => household_id}, _session, socket) do
-    user = socket.assigns.current_scope.user
+  def mount(_params, _session, socket) do
+    # household and role are set by HouseholdHooks
+    household = socket.assigns.household
 
-    case Households.get_household_for_user(household_id, user) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Household not found")
-         |> push_navigate(to: ~p"/households")}
+    conversations = AI.list_conversations(household.id)
+    api_key = AI.get_api_key(household.id)
 
-      %{household: household, role: role} ->
-        conversations = AI.list_conversations(household.id)
-        api_key = AI.get_api_key(household.id)
-
-        {:ok,
-         socket
-         |> assign(:household, household)
-         |> assign(:role, role)
-         |> assign(:conversations, conversations)
-         |> assign(:has_api_key, api_key != nil && api_key.is_valid)
-         |> assign(:page_title, "AI Chat")}
-    end
+    {:ok,
+     socket
+     |> assign(:active_tab, :chat)
+     |> assign(:conversations, conversations)
+     |> assign(:has_api_key, api_key != nil && api_key.is_valid)
+     |> assign(:page_title, "AI Chat")}
   end
 
   @impl true
@@ -72,6 +62,22 @@ defmodule FeedMeWeb.ChatLive.Index do
         {:ok, _} = AI.archive_conversation(conversation)
         conversations = AI.list_conversations(socket.assigns.household.id)
         {:noreply, assign(socket, :conversations, conversations)}
+    end
+  end
+
+  def handle_event("delete_conversation", %{"id" => id}, socket) do
+    case AI.get_conversation(id, socket.assigns.household.id) do
+      nil ->
+        {:noreply, socket}
+
+      conversation ->
+        {:ok, _} = AI.delete_conversation(conversation)
+        conversations = AI.list_conversations(socket.assigns.household.id)
+
+        {:noreply,
+         socket
+         |> assign(:conversations, conversations)
+         |> put_flash(:info, "Conversation deleted")}
     end
   end
 
@@ -125,20 +131,20 @@ defmodule FeedMeWeb.ChatLive.Index do
           <% else %>
             <div class="space-y-2">
               <%= for conversation <- @conversations do %>
-                <.link
-                  navigate={~p"/households/#{@household.id}/chat/#{conversation.id}"}
-                  class="block"
-                >
-                  <div class="card bg-base-100 border border-base-200 hover:border-primary transition-colors">
-                    <div class="card-body p-4 flex-row items-center justify-between">
-                      <div>
-                        <h3 class="font-medium">
-                          <%= conversation.title || "New conversation" %>
-                        </h3>
-                        <p class="text-sm text-base-content/60">
-                          <%= Calendar.strftime(conversation.updated_at, "%b %d, %Y at %I:%M %p") %>
-                        </p>
-                      </div>
+                <div class="card bg-base-100 border border-base-200 hover:border-primary transition-colors">
+                  <div class="card-body p-4 flex-row items-center justify-between">
+                    <.link
+                      navigate={~p"/households/#{@household.id}/chat/#{conversation.id}"}
+                      class="flex-1"
+                    >
+                      <h3 class="font-medium">
+                        <%= conversation.title || "New conversation" %>
+                      </h3>
+                      <p class="text-sm text-base-content/60">
+                        <%= Calendar.strftime(conversation.updated_at, "%b %d, %Y at %I:%M %p") %>
+                      </p>
+                    </.link>
+                    <div class="flex gap-1">
                       <button
                         phx-click="archive_conversation"
                         phx-value-id={conversation.id}
@@ -147,9 +153,18 @@ defmodule FeedMeWeb.ChatLive.Index do
                       >
                         <.icon name="hero-archive-box" class="size-4" />
                       </button>
+                      <button
+                        phx-click="delete_conversation"
+                        phx-value-id={conversation.id}
+                        data-confirm="Delete this conversation? This cannot be undone."
+                        class="btn btn-ghost btn-sm text-error"
+                        title="Delete"
+                      >
+                        <.icon name="hero-trash" class="size-4" />
+                      </button>
                     </div>
                   </div>
-                </.link>
+                </div>
               <% end %>
             </div>
           <% end %>

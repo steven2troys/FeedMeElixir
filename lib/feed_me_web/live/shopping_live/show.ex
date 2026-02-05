@@ -1,45 +1,36 @@
 defmodule FeedMeWeb.ShoppingLive.Show do
   use FeedMeWeb, :live_view
 
-  alias FeedMe.Households
   alias FeedMe.Pantry
   alias FeedMe.Shopping
 
   @impl true
-  def mount(%{"household_id" => household_id, "id" => list_id}, _session, socket) do
+  def mount(%{"id" => list_id}, _session, socket) do
+    # household and role are set by HouseholdHooks
     user = socket.assigns.current_scope.user
+    household = socket.assigns.household
+    list = Shopping.get_list_with_items(list_id, household.id)
 
-    case Households.get_household_for_user(household_id, user) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Household not found")
-         |> push_navigate(to: ~p"/households")}
+    if list do
+      if connected?(socket), do: Shopping.subscribe(household.id)
 
-      %{household: household} ->
-        list = Shopping.get_list_with_items(list_id, household.id)
+      categories = Pantry.list_categories(household.id)
+      # Generate socket token for channel
+      token = Phoenix.Token.sign(FeedMeWeb.Endpoint, "user socket", user.id)
 
-        if list do
-          if connected?(socket), do: Shopping.subscribe(household.id)
-
-          categories = Pantry.list_categories(household.id)
-          # Generate socket token for channel
-          token = Phoenix.Token.sign(FeedMeWeb.Endpoint, "user socket", user.id)
-
-          {:ok,
-           socket
-           |> assign(:household, household)
-           |> assign(:list, list)
-           |> assign(:categories, categories)
-           |> assign(:socket_token, token)
-           |> assign(:new_item_name, "")
-           |> assign(:page_title, list.name)}
-        else
-          {:ok,
-           socket
-           |> put_flash(:error, "Shopping list not found")
-           |> push_navigate(to: ~p"/households/#{household.id}/shopping")}
-        end
+      {:ok,
+       socket
+       |> assign(:active_tab, :shopping)
+       |> assign(:list, list)
+       |> assign(:categories, categories)
+       |> assign(:socket_token, token)
+       |> assign(:new_item_name, "")
+       |> assign(:page_title, list.name)}
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "Shopping list not found")
+       |> push_navigate(to: ~p"/households/#{household.id}/shopping")}
     end
   end
 
@@ -112,6 +103,20 @@ defmodule FeedMeWeb.ShoppingLive.Show do
      |> assign(:list, list)}
   end
 
+  def handle_event("toggle_add_to_pantry", _params, socket) do
+    list = socket.assigns.list
+    new_value = !list.add_to_pantry
+
+    case Shopping.update_list(list, %{add_to_pantry: new_value}) do
+      {:ok, _updated} ->
+        list = Shopping.get_list_with_items(list.id, socket.assigns.household.id)
+        {:noreply, assign(socket, list: list)}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to update setting")}
+    end
+  end
+
   @impl true
   def handle_info({:item_created, _item}, socket) do
     list = Shopping.get_list_with_items(socket.assigns.list.id, socket.assigns.household.id)
@@ -163,11 +168,13 @@ defmodule FeedMeWeb.ShoppingLive.Show do
                 <.icon name="hero-ellipsis-vertical" class="size-5" />
               </div>
               <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-                <li>
-                  <button phx-click="transfer_to_pantry">
-                    <.icon name="hero-arrow-up-tray" class="size-4" /> Add to Pantry
-                  </button>
-                </li>
+                <%= unless @list.add_to_pantry do %>
+                  <li>
+                    <button phx-click="transfer_to_pantry">
+                      <.icon name="hero-arrow-up-tray" class="size-4" /> Add to Pantry
+                    </button>
+                  </li>
+                <% end %>
                 <li>
                   <button phx-click="clear_checked" class="text-error">
                     <.icon name="hero-trash" class="size-4" /> Clear Checked
@@ -178,6 +185,22 @@ defmodule FeedMeWeb.ShoppingLive.Show do
           <% end %>
         </:actions>
       </.header>
+
+      <div class="mt-4 flex items-center gap-2">
+        <label class="label cursor-pointer gap-2">
+          <span class="label-text text-sm">Auto-add to pantry</span>
+          <input
+            type="checkbox"
+            class="toggle toggle-primary toggle-sm"
+            checked={@list.add_to_pantry}
+            disabled={@list.is_main}
+            phx-click="toggle_add_to_pantry"
+          />
+        </label>
+        <%= if @list.is_main do %>
+          <span class="text-xs text-base-content/50">(always on)</span>
+        <% end %>
+      </div>
 
       <div class="mt-6">
         <form phx-submit="add_item" class="flex gap-2">

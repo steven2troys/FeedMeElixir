@@ -1,39 +1,29 @@
 defmodule FeedMeWeb.PantryLive.Show do
   use FeedMeWeb, :live_view
 
-  alias FeedMe.Households
   alias FeedMe.Pantry
   alias FeedMe.Pantry.Item
 
   @impl true
-  def mount(%{"household_id" => household_id, "id" => item_id}, _session, socket) do
-    user = socket.assigns.current_scope.user
+  def mount(%{"id" => item_id}, _session, socket) do
+    # household and role are set by HouseholdHooks
+    household = socket.assigns.household
+    item = Pantry.get_item(item_id, household.id)
 
-    case Households.get_household_for_user(household_id, user) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Household not found")
-         |> push_navigate(to: ~p"/households")}
+    if item do
+      transactions = Pantry.list_transactions_for_item(item.id, limit: 20)
 
-      %{household: household} ->
-        item = Pantry.get_item(item_id, household.id)
-
-        if item do
-          transactions = Pantry.list_transactions_for_item(item.id, limit: 20)
-
-          {:ok,
-           socket
-           |> assign(:household, household)
-           |> assign(:item, item)
-           |> assign(:transactions, transactions)
-           |> assign(:page_title, item.name)}
-        else
-          {:ok,
-           socket
-           |> put_flash(:error, "Item not found")
-           |> push_navigate(to: ~p"/households/#{household.id}/pantry")}
-        end
+      {:ok,
+       socket
+       |> assign(:active_tab, :pantry)
+       |> assign(:item, item)
+       |> assign(:transactions, transactions)
+       |> assign(:page_title, item.name)}
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "Item not found")
+       |> push_navigate(to: ~p"/households/#{household.id}/pantry")}
     end
   end
 

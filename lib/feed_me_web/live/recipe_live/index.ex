@@ -1,35 +1,26 @@
 defmodule FeedMeWeb.RecipeLive.Index do
   use FeedMeWeb, :live_view
 
-  alias FeedMe.Households
   alias FeedMe.Recipes
   alias FeedMe.Recipes.Recipe
 
   @impl true
-  def mount(%{"household_id" => household_id}, _session, socket) do
-    user = socket.assigns.current_scope.user
+  def mount(_params, _session, socket) do
+    # household and role are set by HouseholdHooks
+    household = socket.assigns.household
 
-    case Households.get_household_for_user(household_id, user) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Household not found")
-         |> push_navigate(to: ~p"/households")}
+    recipes = Recipes.list_recipes(household.id)
+    tags = Recipes.list_tags(household.id)
 
-      %{household: household} ->
-        recipes = Recipes.list_recipes(household.id)
-        tags = Recipes.list_tags(household.id)
-
-        {:ok,
-         socket
-         |> assign(:household, household)
-         |> assign(:recipes, recipes)
-         |> assign(:tags, tags)
-         |> assign(:filter_tag, nil)
-         |> assign(:filter_favorites, false)
-         |> assign(:search_query, "")
-         |> assign(:page_title, "Recipes")}
-    end
+    {:ok,
+     socket
+     |> assign(:active_tab, :recipes)
+     |> assign(:recipes, recipes)
+     |> assign(:tags, tags)
+     |> assign(:filter_tag, nil)
+     |> assign(:filter_favorites, false)
+     |> assign(:search_query, "")
+     |> assign(:page_title, "Recipes")}
   end
 
   @impl true

@@ -7,6 +7,7 @@ defmodule FeedMe.Shopping do
   alias FeedMe.Repo
   alias FeedMe.Shopping.{List, Item, CategoryOrder}
   alias FeedMe.Pantry
+  alias FeedMe.Pantry.Sync
 
   @pubsub FeedMe.PubSub
 
@@ -154,6 +155,8 @@ defmodule FeedMe.Shopping do
   Creates an item.
   """
   def create_item(attrs) do
+    attrs = maybe_link_to_pantry_item(attrs)
+
     %Item{}
     |> Item.changeset(attrs)
     |> Repo.insert()
@@ -210,12 +213,29 @@ defmodule FeedMe.Shopping do
   Toggles the checked status of an item.
   """
   def toggle_item_checked(%Item{} = item, user_id) do
+    item = Repo.preload(item, [:shopping_list, :pantry_item])
+    was_unchecked = not item.checked
+
     item
     |> Item.toggle_checked_changeset(user_id)
     |> Repo.update()
     |> tap(fn result ->
       case result do
         {:ok, updated} ->
+          if item.shopping_list.add_to_pantry do
+            if was_unchecked do
+              Sync.queue_item(item.shopping_list.household_id, %{
+                shopping_item_id: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                unit: item.unit,
+                pantry_item_id: item.pantry_item_id
+              })
+            else
+              Sync.dequeue_item(item.shopping_list.household_id, item.id)
+            end
+          end
+
           updated = Repo.preload(updated, :shopping_list)
           broadcast(:shopping, updated.shopping_list.household_id, {:item_toggled, updated})
 
@@ -223,6 +243,36 @@ defmodule FeedMe.Shopping do
           :ok
       end
     end)
+  end
+
+  defp maybe_link_to_pantry_item(attrs) do
+    attrs = if is_struct(attrs, Map), do: attrs, else: Map.new(attrs)
+
+    has_pantry_link =
+      Map.get(attrs, :pantry_item_id) || Map.get(attrs, "pantry_item_id")
+
+    name = Map.get(attrs, :name) || Map.get(attrs, "name")
+    list_id = Map.get(attrs, :shopping_list_id) || Map.get(attrs, "shopping_list_id")
+
+    if has_pantry_link || is_nil(name) || is_nil(list_id) do
+      attrs
+    else
+      case get_list(list_id) do
+        nil ->
+          attrs
+
+        list ->
+          case Pantry.find_item_by_name(name, list.household_id) do
+            nil ->
+              attrs
+
+            pantry_item ->
+              attrs
+              |> Map.put(:pantry_item_id, pantry_item.id)
+              |> Map.put(:category_id, pantry_item.category_id)
+          end
+      end
+    end
   end
 
   @doc """

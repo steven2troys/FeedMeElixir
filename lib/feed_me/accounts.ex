@@ -60,6 +60,15 @@ defmodule FeedMe.Accounts do
   """
   def get_user!(id), do: Repo.get!(User, id)
 
+  @doc """
+  Updates a user's profile (name only).
+  """
+  def update_user_profile(%User{} = user, attrs) do
+    user
+    |> User.profile_changeset(attrs)
+    |> Repo.update()
+  end
+
   ## User registration
 
   @doc """

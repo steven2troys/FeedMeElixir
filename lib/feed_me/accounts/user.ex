@@ -141,6 +141,15 @@ defmodule FeedMe.Accounts.User do
   end
 
   @doc """
+  A user changeset for updating profile info (name).
+  """
+  def profile_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:name])
+    |> validate_length(:name, max: 100)
+  end
+
+  @doc """
   A user changeset for Google OAuth registration/sign-in.
   """
   def google_oauth_changeset(user, attrs) do

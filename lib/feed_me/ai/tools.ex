@@ -4,6 +4,7 @@ defmodule FeedMe.AI.Tools do
   """
 
   alias FeedMe.{Pantry, Profiles, Recipes, Shopping}
+  alias FeedMe.AI.{ApiKey, OpenRouter}
 
   @doc """
   Returns all tool definitions for the AI.
@@ -16,7 +17,9 @@ defmodule FeedMe.AI.Tools do
       get_taste_profiles(),
       check_pantry(),
       get_pantry_categories(),
-      suggest_recipe()
+      suggest_recipe(),
+      search_web(),
+      add_recipe()
     ]
   end
 
@@ -32,6 +35,8 @@ defmodule FeedMe.AI.Tools do
       "check_pantry" -> execute_check_pantry(args, context)
       "get_pantry_categories" -> execute_get_pantry_categories(args, context)
       "suggest_recipe" -> execute_suggest_recipe(args, context)
+      "search_web" -> execute_search_web(args, context)
+      "add_recipe" -> execute_add_recipe(args, context)
       _ -> {:error, "Unknown tool: #{tool_name}"}
     end
   end
@@ -155,6 +160,70 @@ defmodule FeedMe.AI.Tools do
             use_pantry_items: %{type: "boolean", description: "Prioritize recipes using pantry items"},
             max_missing: %{type: "integer", description: "Maximum number of missing ingredients"}
           }
+        }
+      }
+    }
+  end
+
+  defp search_web do
+    %{
+      type: "function",
+      function: %{
+        name: "search_web",
+        description: "Search the web for recipes, cooking techniques, ingredient substitutions, food information, or any other culinary knowledge not in the household's recipe book",
+        parameters: %{
+          type: "object",
+          properties: %{
+            query: %{
+              type: "string",
+              description: "The search query - be specific and include relevant context (e.g., 'authentic Italian carbonara recipe' or 'substitute for buttermilk in baking')"
+            }
+          },
+          required: ["query"]
+        }
+      }
+    }
+  end
+
+  defp add_recipe do
+    %{
+      type: "function",
+      function: %{
+        name: "add_recipe",
+        description: "Add a new recipe to the household's recipe book. Use this when the user wants to save a recipe you found or know from your training.",
+        parameters: %{
+          type: "object",
+          properties: %{
+            title: %{type: "string", description: "The recipe title"},
+            description: %{type: "string", description: "A brief description of the dish"},
+            instructions: %{type: "string", description: "Step-by-step cooking instructions"},
+            ingredients: %{
+              type: "array",
+              description: "List of ingredients",
+              items: %{
+                type: "object",
+                properties: %{
+                  name: %{type: "string", description: "Ingredient name"},
+                  quantity: %{type: "number", description: "Amount needed"},
+                  unit: %{type: "string", description: "Unit of measurement (e.g., 'cups', 'tbsp', 'oz')"},
+                  notes: %{type: "string", description: "Optional notes (e.g., 'diced', 'room temperature')"},
+                  optional: %{type: "boolean", description: "Whether this ingredient is optional"}
+                },
+                required: ["name"]
+              }
+            },
+            prep_time_minutes: %{type: "integer", description: "Preparation time in minutes"},
+            cook_time_minutes: %{type: "integer", description: "Cooking time in minutes"},
+            servings: %{type: "integer", description: "Number of servings"},
+            source_url: %{type: "string", description: "URL where the recipe was found (if applicable)"},
+            source_name: %{type: "string", description: "Name of the source (e.g., 'New York Times Cooking', 'Grandma's cookbook')"},
+            tags: %{
+              type: "array",
+              items: %{type: "string"},
+              description: "Tags for categorization (e.g., 'dinner', 'vegetarian', 'quick', 'italian')"
+            }
+          },
+          required: ["title", "instructions", "ingredients"]
         }
       }
     }
@@ -366,6 +435,50 @@ defmodule FeedMe.AI.Tools do
     end
   end
 
+  defp execute_search_web(args, %{household_id: household_id}) do
+    query = args["query"]
+
+    if is_nil(query) or query == "" do
+      {:error, "Search query is required"}
+    else
+      # Get the API key for this household
+      case FeedMe.AI.get_api_key(household_id, "openrouter") do
+        nil ->
+          {:error, "No API key configured. Please set up an OpenRouter API key in settings."}
+
+        api_key_record ->
+          api_key = ApiKey.decrypt_key(api_key_record)
+
+          # Call Perplexity Sonar via OpenRouter
+          messages = [
+            %{
+              role: :system,
+              content: "You are a helpful culinary assistant. Provide concise, accurate information about recipes, cooking techniques, and food. Include specific details like ingredients, measurements, and steps when relevant. Keep responses focused and practical."
+            },
+            %{
+              role: :user,
+              content: query
+            }
+          ]
+
+          case OpenRouter.chat(api_key, messages, model: "perplexity/sonar") do
+            {:ok, response} ->
+              content = response.content || "No results found."
+              {:ok, format_search_result(content, response.citations)}
+
+            {:error, :invalid_api_key} ->
+              {:error, "Invalid API key. Please check your OpenRouter API key in settings."}
+
+            {:error, :rate_limited} ->
+              {:error, "Rate limited. Please try again in a moment."}
+
+            {:error, reason} ->
+              {:error, "Web search failed: #{inspect(reason)}"}
+          end
+      end
+    end
+  end
+
   # Helpers
 
   defp maybe_add_opt(opts, _key, nil), do: opts
@@ -378,5 +491,82 @@ defmodule FeedMe.AI.Tools do
       {:ok, date} -> date
       _ -> nil
     end
+  end
+
+  defp execute_add_recipe(args, %{household_id: household_id, user: user}) do
+    # Build recipe attributes
+    recipe_attrs = %{
+      title: args["title"],
+      description: args["description"],
+      instructions: args["instructions"],
+      prep_time_minutes: args["prep_time_minutes"],
+      cook_time_minutes: args["cook_time_minutes"],
+      servings: args["servings"],
+      source_url: args["source_url"],
+      source_name: args["source_name"],
+      tags: args["tags"] || [],
+      household_id: household_id,
+      created_by_id: user.id
+    }
+
+    case Recipes.create_recipe(recipe_attrs) do
+      {:ok, recipe} ->
+        # Add ingredients if provided
+        ingredients = args["ingredients"] || []
+
+        if ingredients != [] do
+          ingredient_list =
+            Enum.map(ingredients, fn ing ->
+              %{
+                name: ing["name"],
+                quantity: ing["quantity"] && Decimal.new("#{ing["quantity"]}"),
+                unit: ing["unit"],
+                notes: ing["notes"],
+                optional: ing["optional"] || false
+              }
+            end)
+
+          Recipes.bulk_create_ingredients(recipe.id, ingredient_list)
+        end
+
+        # Build confirmation message
+        ingredient_count = length(ingredients)
+        time_info = format_time_info(args["prep_time_minutes"], args["cook_time_minutes"])
+        servings_info = if args["servings"], do: " • #{args["servings"]} servings", else: ""
+
+        {:ok, "Added recipe \"#{recipe.title}\" with #{ingredient_count} ingredients#{time_info}#{servings_info}"}
+
+      {:error, changeset} ->
+        {:error, "Failed to add recipe: #{format_changeset_errors(changeset)}"}
+    end
+  end
+
+  defp format_time_info(nil, nil), do: ""
+  defp format_time_info(prep, nil), do: " • #{prep} min prep"
+  defp format_time_info(nil, cook), do: " • #{cook} min cook"
+  defp format_time_info(prep, cook), do: " • #{prep + cook} min total"
+
+  defp format_changeset_errors(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Enum.map(fn {field, errors} -> "#{field}: #{Enum.join(errors, ", ")}" end)
+    |> Enum.join("; ")
+  end
+
+  defp format_search_result(content, nil), do: content
+  defp format_search_result(content, []), do: content
+
+  defp format_search_result(content, citations) when is_list(citations) do
+    # Format citations as a numbered list of sources
+    sources =
+      citations
+      |> Enum.with_index(1)
+      |> Enum.map(fn {url, idx} -> "[#{idx}] #{url}" end)
+      |> Enum.join("\n")
+
+    "#{content}\n\nSources:\n#{sources}"
   end
 end

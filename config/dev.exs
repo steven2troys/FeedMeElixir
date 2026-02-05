@@ -95,3 +95,8 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+# Shorter debounce for Pantry Sync in dev (30 seconds instead of 10 minutes)
+config :feed_me, FeedMe.Pantry.Sync,
+  debounce_ms: :timer.seconds(30),
+  enabled: true

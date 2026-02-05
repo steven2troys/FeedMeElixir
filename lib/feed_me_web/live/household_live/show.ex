@@ -1,26 +1,13 @@
 defmodule FeedMeWeb.HouseholdLive.Show do
   use FeedMeWeb, :live_view
 
-  alias FeedMe.Households
-
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
-    user = socket.assigns.current_scope.user
-
-    case Households.get_household_for_user(id, user) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Household not found or you don't have access")
-         |> push_navigate(to: ~p"/households")}
-
-      %{household: household, role: role} ->
-        {:ok,
-         socket
-         |> assign(:household, household)
-         |> assign(:role, role)
-         |> assign(:page_title, household.name)}
-    end
+  def mount(_params, _session, socket) do
+    # household and role are set by HouseholdHooks
+    {:ok,
+     socket
+     |> assign(:active_tab, :dashboard)
+     |> assign(:page_title, socket.assigns.household.name)}
   end
 
   @impl true
@@ -28,7 +15,7 @@ defmodule FeedMeWeb.HouseholdLive.Show do
     ~H"""
     <div class="mx-auto max-w-4xl">
       <.header>
-        <%= @household.name %>
+        Dashboard
         <:subtitle>
           <span class={[
             "badge",
@@ -38,17 +25,6 @@ defmodule FeedMeWeb.HouseholdLive.Show do
             You are an <%= @role %>
           </span>
         </:subtitle>
-        <:actions>
-          <%= if @role == :admin do %>
-            <.link navigate={~p"/households/#{@household.id}/settings/api-key"} class="btn btn-ghost btn-sm gap-1">
-              <.icon name="hero-cog-6-tooth" class="h-4 w-4" />
-              Settings
-            </.link>
-          <% end %>
-          <.link navigate={~p"/households/#{@household.id}/members"}>
-            <.button>Manage Members</.button>
-          </.link>
-        </:actions>
       </.header>
 
       <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -59,10 +35,10 @@ defmodule FeedMeWeb.HouseholdLive.Show do
           icon="hero-archive-box"
         />
         <.dashboard_card
-          title="Taste Profile"
-          description="Set your dietary preferences"
-          href={~p"/households/#{@household.id}/profile"}
-          icon="hero-heart"
+          title="Members & Profiles"
+          description="View members and taste profiles"
+          href={~p"/households/#{@household.id}/members"}
+          icon="hero-user-group"
         />
         <.dashboard_card
           title="Shopping Lists"
@@ -90,8 +66,6 @@ defmodule FeedMeWeb.HouseholdLive.Show do
           disabled
         />
       </div>
-
-      <.back navigate={~p"/households"}>Back to households</.back>
     </div>
     """
   end

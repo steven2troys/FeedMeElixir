@@ -20,6 +20,14 @@ defmodule FeedMeWeb.ShoppingLive.ListFormComponent do
         phx-submit="save"
       >
         <.input field={@form[:name]} type="text" label="List Name" />
+        <.input
+          field={@form[:add_to_pantry]}
+          type="checkbox"
+          label="Auto-add checked items to pantry"
+        />
+        <p class="text-xs text-base-content/60 -mt-2">
+          When enabled, checking off an item linked to a pantry item will automatically update pantry inventory.
+        </p>
         <:actions>
           <.button phx-disable-with="Saving...">Create List</.button>
         </:actions>

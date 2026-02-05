@@ -92,6 +92,11 @@ config :feed_me, :openrouter,
 # Encryption key for API keys (32 bytes for AES-256)
 config :feed_me, :encryption_key, System.get_env("ENCRYPTION_KEY")
 
+# Pantry Sync (AI-powered batch pantry updates from shopping lists)
+config :feed_me, FeedMe.Pantry.Sync,
+  debounce_ms: :timer.minutes(10),
+  enabled: true
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

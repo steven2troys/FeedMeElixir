@@ -10,7 +10,7 @@ defmodule FeedMe.AI.Message do
   schema "ai_messages" do
     field :role, Ecto.Enum, values: [:user, :assistant, :system, :tool]
     field :content, :string
-    field :tool_calls, :map
+    field :tool_calls, {:array, :map}
     field :tool_call_id, :string
     field :metadata, :map
 

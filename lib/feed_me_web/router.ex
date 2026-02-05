@@ -69,42 +69,46 @@ defmodule FeedMeWeb.Router do
     put "/users/settings", UserSettingsController, :update
     get "/users/settings/confirm-email/:token", UserSettingsController, :confirm_email
 
-    # Household routes
+    # Household list routes (no sidebar)
     live "/households", HouseholdLive.Index, :index
     live "/households/new", HouseholdLive.Index, :new
-    live "/households/:id", HouseholdLive.Show, :show
-    live "/households/:id/members", HouseholdLive.Members, :index
-    live "/households/:id/invite", HouseholdLive.Members, :invite
 
-    # Taste Profile routes
-    live "/households/:household_id/profile", ProfileLive.Edit, :edit
+    # Household-scoped routes with sidebar layout
+    live_session :household,
+      on_mount: [{FeedMeWeb.LiveAuth, :default}, {FeedMeWeb.HouseholdHooks, :default}],
+      layout: {FeedMeWeb.Layouts, :household} do
+      live "/households/:id", HouseholdLive.Show, :show
+      live "/households/:id/members", HouseholdLive.Members, :index
+      live "/households/:id/members/:member_id/edit", HouseholdLive.Members, :edit_member
+      live "/households/:id/invite", HouseholdLive.Members, :invite
 
-    # Pantry routes
-    live "/households/:household_id/pantry", PantryLive.Index, :index
-    live "/households/:household_id/pantry/new", PantryLive.Index, :new
-    live "/households/:household_id/pantry/:id/edit", PantryLive.Index, :edit
-    live "/households/:household_id/pantry/:id", PantryLive.Show, :show
-    live "/households/:household_id/pantry/categories", PantryLive.Categories, :index
+      # Pantry routes
+      live "/households/:household_id/pantry", PantryLive.Index, :index
+      live "/households/:household_id/pantry/new", PantryLive.Index, :new
+      live "/households/:household_id/pantry/:id/edit", PantryLive.Index, :edit
+      live "/households/:household_id/pantry/:id", PantryLive.Show, :show
+      live "/households/:household_id/pantry/categories", PantryLive.Categories, :index
 
-    # Shopping List routes
-    live "/households/:household_id/shopping", ShoppingLive.Index, :index
-    live "/households/:household_id/shopping/new", ShoppingLive.Index, :new
-    live "/households/:household_id/shopping/:id", ShoppingLive.Show, :show
-    live "/households/:household_id/shopping/:id/edit", ShoppingLive.Show, :edit
+      # Shopping List routes
+      live "/households/:household_id/shopping", ShoppingLive.Index, :index
+      live "/households/:household_id/shopping/new", ShoppingLive.Index, :new
+      live "/households/:household_id/shopping/:id", ShoppingLive.Show, :show
+      live "/households/:household_id/shopping/:id/edit", ShoppingLive.Show, :edit
 
-    # Recipe routes
-    live "/households/:household_id/recipes", RecipeLive.Index, :index
-    live "/households/:household_id/recipes/new", RecipeLive.Index, :new
-    live "/households/:household_id/recipes/:id", RecipeLive.Show, :show
-    live "/households/:household_id/recipes/:id/edit", RecipeLive.Show, :edit
-    live "/households/:household_id/recipes/:id/cook", RecipeLive.Show, :cook
+      # Recipe routes
+      live "/households/:household_id/recipes", RecipeLive.Index, :index
+      live "/households/:household_id/recipes/new", RecipeLive.Index, :new
+      live "/households/:household_id/recipes/:id", RecipeLive.Show, :show
+      live "/households/:household_id/recipes/:id/edit", RecipeLive.Show, :edit
+      live "/households/:household_id/recipes/:id/cook", RecipeLive.Show, :cook
 
-    # AI Chat routes
-    live "/households/:household_id/chat", ChatLive.Index, :index
-    live "/households/:household_id/chat/:id", ChatLive.Show, :show
+      # AI Chat routes
+      live "/households/:household_id/chat", ChatLive.Index, :index
+      live "/households/:household_id/chat/:id", ChatLive.Show, :show
 
-    # Settings routes
-    live "/households/:household_id/settings/api-key", SettingsLive.ApiKey, :edit
+      # Settings routes
+      live "/households/:household_id/settings/api-key", SettingsLive.ApiKey, :edit
+    end
 
     # Invitation acceptance
     live "/invitations/:token", InvitationLive.Accept, :accept

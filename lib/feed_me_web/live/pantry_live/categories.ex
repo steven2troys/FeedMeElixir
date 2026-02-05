@@ -1,33 +1,22 @@
 defmodule FeedMeWeb.PantryLive.Categories do
   use FeedMeWeb, :live_view
 
-  alias FeedMe.Households
   alias FeedMe.Pantry
   alias FeedMe.Pantry.Category
 
   @impl true
-  def mount(%{"household_id" => household_id}, _session, socket) do
-    user = socket.assigns.current_scope.user
+  def mount(_params, _session, socket) do
+    # household and role are set by HouseholdHooks
+    household = socket.assigns.household
+    categories = Pantry.list_categories(household.id)
 
-    case Households.get_household_for_user(household_id, user) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Household not found")
-         |> push_navigate(to: ~p"/households")}
-
-      %{household: household, role: role} ->
-        categories = Pantry.list_categories(household.id)
-
-        {:ok,
-         socket
-         |> assign(:household, household)
-         |> assign(:role, role)
-         |> assign(:categories, categories)
-         |> assign(:editing, nil)
-         |> assign(:new_category, nil)
-         |> assign(:page_title, "Pantry Categories")}
-    end
+    {:ok,
+     socket
+     |> assign(:active_tab, :pantry)
+     |> assign(:categories, categories)
+     |> assign(:editing, nil)
+     |> assign(:new_category, nil)
+     |> assign(:page_title, "Pantry Categories")}
   end
 
   @impl true

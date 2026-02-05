@@ -89,7 +89,9 @@ defmodule FeedMe.AI.OpenRouter do
       method: method,
       url: url,
       headers: headers,
-      receive_timeout: 60_000
+      receive_timeout: 90_000,
+      retry: :transient,
+      max_retries: 2
     ]
 
     req_opts = if body, do: Keyword.put(req_opts, :json, body), else: req_opts
@@ -174,16 +176,16 @@ defmodule FeedMe.AI.OpenRouter do
       base = %{role: to_string(msg.role), content: msg.content}
 
       base =
-        if msg.tool_calls do
-          Map.put(base, :tool_calls, msg.tool_calls)
-        else
-          base
+        case Map.get(msg, :tool_calls) do
+          nil -> base
+          [] -> base
+          tool_calls -> Map.put(base, :tool_calls, tool_calls)
         end
 
-      if msg.tool_call_id do
-        Map.put(base, :tool_call_id, msg.tool_call_id)
-      else
-        base
+      case Map.get(msg, :tool_call_id) do
+        nil -> base
+        "" -> base
+        tool_call_id -> Map.put(base, :tool_call_id, tool_call_id)
       end
     end)
   end
@@ -195,7 +197,8 @@ defmodule FeedMe.AI.OpenRouter do
       content: message["content"],
       tool_calls: message["tool_calls"],
       finish_reason: choice["finish_reason"],
-      usage: response["usage"]
+      usage: response["usage"],
+      citations: response["citations"]
     }
   end
 

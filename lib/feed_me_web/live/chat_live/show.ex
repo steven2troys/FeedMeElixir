@@ -6,40 +6,30 @@ defmodule FeedMeWeb.ChatLive.Show do
 
   alias FeedMe.AI
   alias FeedMe.AI.Vision
-  alias FeedMe.Households
   alias FeedMeWeb.ChatLive.{VoiceButtonComponent, CameraComponent}
 
   @impl true
-  def mount(%{"household_id" => household_id, "id" => conversation_id}, _session, socket) do
-    user = socket.assigns.current_scope.user
+  def mount(%{"id" => conversation_id}, _session, socket) do
+    # household and role are set by HouseholdHooks
+    household = socket.assigns.household
+    conversation = AI.get_conversation(conversation_id, household.id)
 
-    case Households.get_household_for_user(household_id, user) do
-      nil ->
-        {:ok,
-         socket
-         |> put_flash(:error, "Household not found")
-         |> push_navigate(to: ~p"/households")}
-
-      %{household: household} ->
-        conversation = AI.get_conversation(conversation_id, household.id)
-
-        if conversation do
-          {:ok,
-           socket
-           |> assign(:household, household)
-           |> assign(:conversation, conversation)
-           |> assign(:messages, conversation.messages || [])
-           |> assign(:input, "")
-           |> assign(:loading, false)
-           |> assign(:streaming_content, "")
-           |> assign(:pending_image, nil)
-           |> assign(:page_title, conversation.title || "Chat")}
-        else
-          {:ok,
-           socket
-           |> put_flash(:error, "Conversation not found")
-           |> push_navigate(to: ~p"/households/#{household.id}/chat")}
-        end
+    if conversation do
+      {:ok,
+       socket
+       |> assign(:active_tab, :chat)
+       |> assign(:conversation, conversation)
+       |> assign(:messages, conversation.messages || [])
+       |> assign(:input, "")
+       |> assign(:loading, false)
+       |> assign(:streaming_content, "")
+       |> assign(:pending_image, nil)
+       |> assign(:page_title, conversation.title || "Chat")}
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "Conversation not found")
+       |> push_navigate(to: ~p"/households/#{household.id}/chat")}
     end
   end
 
@@ -71,6 +61,21 @@ defmodule FeedMeWeb.ChatLive.Show do
 
   def handle_event("clear_image", _params, socket) do
     {:noreply, assign(socket, :pending_image, nil)}
+  end
+
+  def handle_event("new_chat", _params, socket) do
+    user = socket.assigns.current_scope.user
+    household = socket.assigns.household
+
+    case AI.create_conversation(household.id, user) do
+      {:ok, conversation} ->
+        {:noreply,
+         socket
+         |> push_navigate(to: ~p"/households/#{household.id}/chat/#{conversation.id}")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to create new chat")}
+    end
   end
 
   @impl true
@@ -226,7 +231,10 @@ defmodule FeedMeWeb.ChatLive.Show do
       <.header>
         <%= @conversation.title || "New Chat" %>
         <:actions>
-          <.link navigate={~p"/households/#{@household.id}/chat"} class="btn btn-ghost">
+          <button phx-click="new_chat" class="btn btn-primary btn-sm">
+            <.icon name="hero-plus" class="size-4 mr-1" /> New Chat
+          </button>
+          <.link navigate={~p"/households/#{@household.id}/chat"} class="btn btn-ghost btn-sm">
             <.icon name="hero-arrow-left" class="size-4 mr-1" /> All Chats
           </.link>
         </:actions>
@@ -312,17 +320,27 @@ defmodule FeedMeWeb.ChatLive.Show do
   defp message_bubble(assigns) do
     ~H"""
     <div class={["chat", @message.role == :user && "chat-end", @message.role != :user && "chat-start"]}>
-      <div class={[
-        "chat-bubble",
-        @message.role == :user && "chat-bubble-primary",
-        @message.role == :assistant && "bg-base-200 text-base-content",
-        @message.role == :tool && "bg-base-300 text-base-content text-sm"
-      ]}>
-        <%= if @message.role == :tool do %>
-          <div class="font-mono text-xs opacity-70 mb-1">Tool Result</div>
-        <% end %>
-        <div class="whitespace-pre-wrap"><%= @message.content %></div>
-      </div>
+      <%= if @message.role == :tool do %>
+        <div class="chat-bubble bg-base-300 text-base-content text-sm p-0 overflow-hidden">
+          <details class="collapse collapse-arrow bg-base-300">
+            <summary class="collapse-title min-h-0 py-2 px-4 text-xs font-medium">
+              <.icon name="hero-magnifying-glass" class="size-3 inline mr-1" />
+              Web Search Results
+            </summary>
+            <div class="collapse-content px-4 pb-3">
+              <div class="whitespace-pre-wrap text-xs opacity-90"><%= @message.content %></div>
+            </div>
+          </details>
+        </div>
+      <% else %>
+        <div class={[
+          "chat-bubble",
+          @message.role == :user && "chat-bubble-primary",
+          @message.role == :assistant && "bg-base-200 text-base-content"
+        ]}>
+          <div class="whitespace-pre-wrap"><%= @message.content %></div>
+        </div>
+      <% end %>
     </div>
     """
   end

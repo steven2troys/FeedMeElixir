@@ -1,0 +1,118 @@
+<%= if assigns[:household] do %>
+<div class="flex h-[calc(100vh-65px)]">
+  <!-- Sidebar -->
+  <aside class="w-64 bg-base-200 border-r border-base-300 flex flex-col flex-shrink-0">
+    <!-- Household Header -->
+    <div class="p-4 border-b border-base-300">
+      <.link navigate={~p"/households"} class="text-sm text-base-content/60 hover:text-primary flex items-center gap-1 mb-2">
+        <.icon name="hero-arrow-left" class="size-3" /> All Households
+      </.link>
+      <h2 class="font-semibold text-lg truncate"><%= @household.name %></h2>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 p-2 space-y-1 overflow-y-auto">
+      <.link
+        navigate={~p"/households/#{@household.id}"}
+        class={[
+          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+          assigns[:active_tab] == :dashboard && "bg-primary text-primary-content",
+          assigns[:active_tab] != :dashboard && "hover:bg-base-300 text-base-content"
+        ]}
+      >
+        <.icon name="hero-home" class="size-5" />
+        <span class="font-medium">Dashboard</span>
+      </.link>
+
+      <.link
+        navigate={~p"/households/#{@household.id}/pantry"}
+        class={[
+          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+          assigns[:active_tab] == :pantry && "bg-primary text-primary-content",
+          assigns[:active_tab] != :pantry && "hover:bg-base-300 text-base-content"
+        ]}
+      >
+        <.icon name="hero-archive-box" class="size-5" />
+        <span class="font-medium">Pantry</span>
+      </.link>
+
+      <.link
+        navigate={~p"/households/#{@household.id}/shopping"}
+        class={[
+          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+          assigns[:active_tab] == :shopping && "bg-primary text-primary-content",
+          assigns[:active_tab] != :shopping && "hover:bg-base-300 text-base-content"
+        ]}
+      >
+        <.icon name="hero-shopping-cart" class="size-5" />
+        <span class="font-medium">Shopping Lists</span>
+      </.link>
+
+      <.link
+        navigate={~p"/households/#{@household.id}/recipes"}
+        class={[
+          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+          assigns[:active_tab] == :recipes && "bg-primary text-primary-content",
+          assigns[:active_tab] != :recipes && "hover:bg-base-300 text-base-content"
+        ]}
+      >
+        <.icon name="hero-book-open" class="size-5" />
+        <span class="font-medium">Recipes</span>
+      </.link>
+
+      <.link
+        navigate={~p"/households/#{@household.id}/chat"}
+        class={[
+          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+          assigns[:active_tab] == :chat && "bg-primary text-primary-content",
+          assigns[:active_tab] != :chat && "hover:bg-base-300 text-base-content"
+        ]}
+      >
+        <.icon name="hero-chat-bubble-left-right" class="size-5" />
+        <span class="font-medium">AI Chat</span>
+      </.link>
+
+      <div class="divider my-2"></div>
+
+      <.link
+        navigate={~p"/households/#{@household.id}/members"}
+        class={[
+          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+          assigns[:active_tab] == :members && "bg-primary text-primary-content",
+          assigns[:active_tab] != :members && "hover:bg-base-300 text-base-content"
+        ]}
+      >
+        <.icon name="hero-user-group" class="size-5" />
+        <span class="font-medium">Members & Profiles</span>
+      </.link>
+
+      <.link
+        navigate={~p"/households/#{@household.id}/settings/api-key"}
+        class={[
+          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+          assigns[:active_tab] == :settings && "bg-primary text-primary-content",
+          assigns[:active_tab] != :settings && "hover:bg-base-300 text-base-content"
+        ]}
+      >
+        <.icon name="hero-cog-6-tooth" class="size-5" />
+        <span class="font-medium">Settings</span>
+      </.link>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 overflow-y-auto bg-base-100">
+    <div class="p-6">
+      <.flash_group flash={@flash} />
+      {@inner_content}
+    </div>
+  </main>
+</div>
+<% else %>
+<main class="px-4 py-20 sm:px-6 lg:px-8">
+  <div class="mx-auto max-w-2xl space-y-4">
+    <.flash_group flash={@flash} />
+    {@inner_content}
+  </div>
+</main>
+<% end %>
