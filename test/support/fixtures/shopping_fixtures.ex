@@ -20,7 +20,7 @@ defmodule FeedMe.ShoppingFixtures do
       })
       |> Shopping.create_list()
 
-    list
+    FeedMe.Repo.preload(list, :shares)
   end
 
   @doc """

@@ -5,7 +5,7 @@ defmodule FeedMe.Shopping do
 
   import Ecto.Query, warn: false
   alias FeedMe.Repo
-  alias FeedMe.Shopping.{List, Item, CategoryOrder}
+  alias FeedMe.Shopping.{List, Item, ListShare, CategoryOrder}
   alias FeedMe.Pantry
   alias FeedMe.Pantry.Sync
 
@@ -16,12 +16,21 @@ defmodule FeedMe.Shopping do
   # =============================================================================
 
   @doc """
-  Lists all shopping lists for a household.
+  Lists all shopping lists for a household accessible to the given user.
+
+  Returns lists where: main list, legacy (no created_by_id), user is creator, or user has share.
   """
-  def list_shopping_lists(household_id) do
+  def list_shopping_lists(household_id, user_id) do
     List
     |> where([l], l.household_id == ^household_id)
+    |> join(:left, [l], s in ListShare, on: s.shopping_list_id == l.id and s.user_id == ^user_id)
+    |> where(
+      [l, s],
+      l.is_main == true or is_nil(l.created_by_id) or l.created_by_id == ^user_id or
+        not is_nil(s.id)
+    )
     |> order_by([l], desc: l.is_main, asc: l.name)
+    |> preload(:shares)
     |> Repo.all()
   end
 
@@ -408,6 +417,78 @@ defmodule FeedMe.Shopping do
         set_category_order(household_id, category_id, index)
       end)
     end)
+  end
+
+  # =============================================================================
+  # List Sharing
+  # =============================================================================
+
+  @doc """
+  Shares a shopping list with the given user IDs (set operation).
+  Removes shares not in the list, adds new ones.
+  """
+  def share_list(list_id, user_ids) do
+    # Remove shares not in the new list
+    ListShare
+    |> where([s], s.shopping_list_id == ^list_id and s.user_id not in ^user_ids)
+    |> Repo.delete_all()
+
+    # Insert new shares (skip existing via on_conflict)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    entries =
+      Enum.map(user_ids, fn user_id ->
+        %{
+          id: Ecto.UUID.generate(),
+          shopping_list_id: list_id,
+          user_id: user_id,
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    Repo.insert_all(ListShare, entries, on_conflict: :nothing)
+
+    :ok
+  end
+
+  @doc """
+  Removes a single user's share from a shopping list.
+  """
+  def unshare_list(list_id, user_id) do
+    ListShare
+    |> where([s], s.shopping_list_id == ^list_id and s.user_id == ^user_id)
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  @doc """
+  Lists shares for a shopping list with preloaded users.
+  """
+  def list_shares(list_id) do
+    ListShare
+    |> where([s], s.shopping_list_id == ^list_id)
+    |> preload(:user)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns true if the user can access the given shopping list.
+
+  Access is granted if: main list, legacy list (null created_by_id),
+  user is creator, or user has a share.
+  """
+  def list_accessible?(list_id, user_id) do
+    List
+    |> where([l], l.id == ^list_id)
+    |> join(:left, [l], s in ListShare, on: s.shopping_list_id == l.id and s.user_id == ^user_id)
+    |> where(
+      [l, s],
+      l.is_main == true or is_nil(l.created_by_id) or l.created_by_id == ^user_id or
+        not is_nil(s.id)
+    )
+    |> Repo.exists?()
   end
 
   # =============================================================================

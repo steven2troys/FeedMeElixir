@@ -1,6 +1,7 @@
 defmodule FeedMeWeb.ShoppingLive.Show do
   use FeedMeWeb, :live_view
 
+  alias FeedMe.Households
   alias FeedMe.Pantry
   alias FeedMe.Shopping
 
@@ -9,35 +10,72 @@ defmodule FeedMeWeb.ShoppingLive.Show do
     # household and role are set by HouseholdHooks
     user = socket.assigns.current_scope.user
     household = socket.assigns.household
-    list = Shopping.get_list_with_items(list_id, household.id)
 
-    if list do
-      if connected?(socket), do: Shopping.subscribe(household.id)
+    cond do
+      not Shopping.list_accessible?(list_id, user.id) ->
+        {:ok,
+         socket
+         |> put_flash(:error, "You don't have access to this list")
+         |> push_navigate(to: ~p"/households/#{household.id}/shopping")}
 
-      categories = Pantry.list_categories(household.id)
-      # Generate socket token for channel
-      token = Phoenix.Token.sign(FeedMeWeb.Endpoint, "user socket", user.id)
+      true ->
+        list = Shopping.get_list_with_items(list_id, household.id)
 
-      {:ok,
-       socket
-       |> assign(:active_tab, :shopping)
-       |> assign(:list, list)
-       |> assign(:categories, categories)
-       |> assign(:socket_token, token)
-       |> assign(:new_item_name, "")
-       |> assign(:page_title, list.name)}
-    else
-      {:ok,
-       socket
-       |> put_flash(:error, "Shopping list not found")
-       |> push_navigate(to: ~p"/households/#{household.id}/shopping")}
+        if list do
+          if connected?(socket), do: Shopping.subscribe(household.id)
+
+          is_owner = is_nil(list.created_by_id) or list.created_by_id == user.id
+          categories = Pantry.list_categories(household.id)
+          token = Phoenix.Token.sign(FeedMeWeb.Endpoint, "user socket", user.id)
+
+          {:ok,
+           socket
+           |> assign(:active_tab, :shopping)
+           |> assign(:list, list)
+           |> assign(:is_owner, is_owner)
+           |> assign(:categories, categories)
+           |> assign(:socket_token, token)
+           |> assign(:new_item_name, "")
+           |> assign(:page_title, list.name)}
+        else
+          {:ok,
+           socket
+           |> put_flash(:error, "Shopping list not found")
+           |> push_navigate(to: ~p"/households/#{household.id}/shopping")}
+        end
     end
   end
 
   @impl true
   def handle_params(_params, _url, socket) do
-    {:noreply, socket}
+    {:noreply, apply_action(socket, socket.assigns.live_action)}
   end
+
+  defp apply_action(socket, :share) do
+    if socket.assigns.is_owner do
+      household = socket.assigns.household
+      list = socket.assigns.list
+      members = Households.list_members(household.id)
+      current_user = socket.assigns.current_scope.user
+
+      other_members = Enum.reject(members, fn m -> m.user.id == current_user.id end)
+
+      shares = Shopping.list_shares(list.id)
+      shared_user_ids = MapSet.new(shares, fn s -> s.user_id end)
+
+      socket
+      |> assign(:members, other_members)
+      |> assign(:shared_user_ids, shared_user_ids)
+    else
+      socket
+      |> put_flash(:error, "Only the list owner can manage sharing")
+      |> push_patch(
+        to: ~p"/households/#{socket.assigns.household.id}/shopping/#{socket.assigns.list.id}"
+      )
+    end
+  end
+
+  defp apply_action(socket, _action), do: socket
 
   @impl true
   def handle_event("add_item", %{"name" => name}, socket) when name != "" do
@@ -117,6 +155,32 @@ defmodule FeedMeWeb.ShoppingLive.Show do
     end
   end
 
+  def handle_event("save_shares", %{"shares" => share_params}, socket) do
+    list = socket.assigns.list
+
+    user_ids =
+      share_params
+      |> Enum.filter(fn {_id, val} -> val == "true" end)
+      |> Enum.map(fn {id, _val} -> id end)
+
+    Shopping.share_list(list.id, user_ids)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Sharing updated")
+     |> push_patch(to: ~p"/households/#{socket.assigns.household.id}/shopping/#{list.id}")}
+  end
+
+  def handle_event("save_shares", _params, socket) do
+    list = socket.assigns.list
+    Shopping.share_list(list.id, [])
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Sharing updated")
+     |> push_patch(to: ~p"/households/#{socket.assigns.household.id}/shopping/#{list.id}")}
+  end
+
   @impl true
   def handle_info({:item_created, _item}, socket) do
     list = Shopping.get_list_with_items(socket.assigns.list.id, socket.assigns.household.id)
@@ -162,6 +226,14 @@ defmodule FeedMeWeb.ShoppingLive.Show do
           <% end %>
         </:subtitle>
         <:actions>
+          <%= if @is_owner and not @list.is_main and @list.created_by_id != nil do %>
+            <.link
+              patch={~p"/households/#{@household.id}/shopping/#{@list.id}/share"}
+              class="btn btn-ghost btn-sm"
+            >
+              <.icon name="hero-share" class="size-4 mr-1" /> Share
+            </.link>
+          <% end %>
           <%= if length(@checked) > 0 do %>
             <div class="dropdown dropdown-end">
               <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
@@ -188,6 +260,55 @@ defmodule FeedMeWeb.ShoppingLive.Show do
           <% end %>
         </:actions>
       </.header>
+
+      <.modal
+        :if={@live_action == :share}
+        id="share-modal"
+        show
+        close_button={false}
+        on_cancel={JS.patch(~p"/households/#{@household.id}/shopping/#{@list.id}")}
+      >
+        <.header>
+          Share List
+          <:subtitle>Choose household members to share this list with</:subtitle>
+        </.header>
+
+        <form phx-submit="save_shares" class="mt-4">
+          <div class="space-y-3">
+            <%= for member <- @members do %>
+              <label class="flex items-center gap-3 p-3 rounded-lg hover:bg-base-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name={"shares[#{member.user.id}]"}
+                  value="true"
+                  checked={MapSet.member?(@shared_user_ids, member.user.id)}
+                  class="checkbox checkbox-primary"
+                />
+                <div>
+                  <div class="font-medium">{member.user.name || member.user.email}</div>
+                  <div class="text-sm text-base-content/60">{member.role}</div>
+                </div>
+              </label>
+            <% end %>
+          </div>
+
+          <%= if @members == [] do %>
+            <p class="text-center text-base-content/60 py-4">
+              No other household members to share with.
+            </p>
+          <% end %>
+
+          <div class="mt-6 flex justify-end gap-2">
+            <.link
+              patch={~p"/households/#{@household.id}/shopping/#{@list.id}"}
+              class="btn btn-ghost"
+            >
+              Cancel
+            </.link>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </.modal>
 
       <div class="mt-4 flex items-center gap-2">
         <label class="label cursor-pointer gap-2">

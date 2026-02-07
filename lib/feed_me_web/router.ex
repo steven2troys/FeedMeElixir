@@ -96,6 +96,7 @@ defmodule FeedMeWeb.Router do
       live "/households/:household_id/shopping/new", ShoppingLive.Index, :new
       live "/households/:household_id/shopping/:id", ShoppingLive.Show, :show
       live "/households/:household_id/shopping/:id/edit", ShoppingLive.Show, :edit
+      live "/households/:household_id/shopping/:id/share", ShoppingLive.Show, :share
 
       # Recipe routes
       live "/households/:household_id/recipes", RecipeLive.Index, :index

@@ -27,7 +27,8 @@ defmodule FeedMeWeb.HouseholdLive.Show do
     expired = Pantry.expired_items(household_id)
     expiring = Pantry.items_expiring_soon(household_id, 7)
     restock = Pantry.items_needing_restock(household_id)
-    shopping_lists = Shopping.list_shopping_lists(household_id)
+    user_id = socket.assigns.current_scope.user.id
+    shopping_lists = Shopping.list_shopping_lists(household_id, user_id)
     recent_recipes = Recipes.list_recipes(household_id, order_by: :newest) |> Enum.take(4)
     favorite_recipes = Recipes.list_recipes(household_id, favorites_only: true) |> Enum.take(4)
 

@@ -57,7 +57,10 @@ defmodule FeedMeWeb.ShoppingLive.ListFormComponent do
   end
 
   def handle_event("save", %{"list" => list_params}, socket) do
-    params = Map.put(list_params, "household_id", socket.assigns.household.id)
+    params =
+      list_params
+      |> Map.put("household_id", socket.assigns.household.id)
+      |> Map.put("created_by_id", socket.assigns.current_scope.user.id)
 
     case Shopping.create_list(params) do
       {:ok, list} ->

@@ -15,9 +15,12 @@ defmodule FeedMe.ShoppingTest do
       %{user: user, household: household}
     end
 
-    test "list_shopping_lists/1 returns all lists for a household", %{household: household} do
+    test "list_shopping_lists/2 returns all lists for a household", %{
+      user: user,
+      household: household
+    } do
       list = ShoppingFixtures.shopping_list_fixture(household)
-      lists = Shopping.list_shopping_lists(household.id)
+      lists = Shopping.list_shopping_lists(household.id, user.id)
       assert length(lists) == 1
       assert hd(lists).id == list.id
     end
@@ -321,6 +324,185 @@ defmodule FeedMe.ShoppingTest do
       # Should not raise or error
       {:ok, checked} = Shopping.toggle_item_checked(item, user.id)
       assert checked.checked == true
+    end
+  end
+
+  describe "shopping list sharing" do
+    setup do
+      user = AccountsFixtures.user_fixture()
+      household = HouseholdsFixtures.household_fixture(%{}, user)
+      other_user = AccountsFixtures.user_fixture()
+
+      %FeedMe.Households.Membership{}
+      |> FeedMe.Households.Membership.changeset(%{
+        user_id: other_user.id,
+        household_id: household.id,
+        role: :member
+      })
+      |> FeedMe.Repo.insert!()
+
+      third_user = AccountsFixtures.user_fixture()
+
+      %FeedMe.Households.Membership{}
+      |> FeedMe.Households.Membership.changeset(%{
+        user_id: third_user.id,
+        household_id: household.id,
+        role: :member
+      })
+      |> FeedMe.Repo.insert!()
+
+      %{user: user, other_user: other_user, third_user: third_user, household: household}
+    end
+
+    test "share_list/2 shares with specified users", %{
+      user: user,
+      other_user: other_user,
+      household: household
+    } do
+      list =
+        ShoppingFixtures.shopping_list_fixture(household, %{created_by_id: user.id})
+
+      Shopping.share_list(list.id, [other_user.id])
+      shares = Shopping.list_shares(list.id)
+      assert length(shares) == 1
+      assert hd(shares).user_id == other_user.id
+    end
+
+    test "share_list/2 set operation replaces shares", %{
+      user: user,
+      other_user: other_user,
+      third_user: third_user,
+      household: household
+    } do
+      list =
+        ShoppingFixtures.shopping_list_fixture(household, %{created_by_id: user.id})
+
+      Shopping.share_list(list.id, [other_user.id])
+      assert length(Shopping.list_shares(list.id)) == 1
+
+      Shopping.share_list(list.id, [third_user.id])
+      shares = Shopping.list_shares(list.id)
+      assert length(shares) == 1
+      assert hd(shares).user_id == third_user.id
+    end
+
+    test "share_list/2 with empty list removes all shares", %{
+      user: user,
+      other_user: other_user,
+      household: household
+    } do
+      list =
+        ShoppingFixtures.shopping_list_fixture(household, %{created_by_id: user.id})
+
+      Shopping.share_list(list.id, [other_user.id])
+      assert length(Shopping.list_shares(list.id)) == 1
+
+      Shopping.share_list(list.id, [])
+      assert Shopping.list_shares(list.id) == []
+    end
+
+    test "unshare_list/2 removes single share", %{
+      user: user,
+      other_user: other_user,
+      third_user: third_user,
+      household: household
+    } do
+      list =
+        ShoppingFixtures.shopping_list_fixture(household, %{created_by_id: user.id})
+
+      Shopping.share_list(list.id, [other_user.id, third_user.id])
+      assert length(Shopping.list_shares(list.id)) == 2
+
+      Shopping.unshare_list(list.id, other_user.id)
+      shares = Shopping.list_shares(list.id)
+      assert length(shares) == 1
+      assert hd(shares).user_id == third_user.id
+    end
+
+    test "list_accessible?/2 true for creator", %{user: user, household: household} do
+      list =
+        ShoppingFixtures.shopping_list_fixture(household, %{created_by_id: user.id})
+
+      assert Shopping.list_accessible?(list.id, user.id)
+    end
+
+    test "list_accessible?/2 true for shared user", %{
+      user: user,
+      other_user: other_user,
+      household: household
+    } do
+      list =
+        ShoppingFixtures.shopping_list_fixture(household, %{created_by_id: user.id})
+
+      Shopping.share_list(list.id, [other_user.id])
+      assert Shopping.list_accessible?(list.id, other_user.id)
+    end
+
+    test "list_accessible?/2 true for main list", %{
+      other_user: other_user,
+      household: household
+    } do
+      main = Shopping.get_or_create_main_list(household.id)
+      assert Shopping.list_accessible?(main.id, other_user.id)
+    end
+
+    test "list_accessible?/2 true for legacy list (null created_by_id)", %{
+      other_user: other_user,
+      household: household
+    } do
+      list = ShoppingFixtures.shopping_list_fixture(household)
+      assert Shopping.list_accessible?(list.id, other_user.id)
+    end
+
+    test "list_accessible?/2 false for non-shared user", %{
+      user: user,
+      other_user: other_user,
+      household: household
+    } do
+      list =
+        ShoppingFixtures.shopping_list_fixture(household, %{created_by_id: user.id})
+
+      refute Shopping.list_accessible?(list.id, other_user.id)
+    end
+
+    test "list_shopping_lists/2 includes shared lists, excludes non-shared", %{
+      user: user,
+      other_user: other_user,
+      household: household
+    } do
+      # Custom list owned by user, not shared
+      _private =
+        ShoppingFixtures.shopping_list_fixture(household, %{
+          name: "Private",
+          created_by_id: user.id
+        })
+
+      # Custom list owned by user, shared with other_user
+      shared =
+        ShoppingFixtures.shopping_list_fixture(household, %{
+          name: "Shared",
+          created_by_id: user.id
+        })
+
+      Shopping.share_list(shared.id, [other_user.id])
+
+      # Legacy list (no created_by_id)
+      legacy = ShoppingFixtures.shopping_list_fixture(household, %{name: "Legacy"})
+
+      # Main list
+      main = Shopping.get_or_create_main_list(household.id)
+
+      # other_user should see: main, legacy, shared — not private
+      lists = Shopping.list_shopping_lists(household.id, other_user.id)
+      list_ids = MapSet.new(lists, & &1.id)
+      assert MapSet.member?(list_ids, main.id)
+      assert MapSet.member?(list_ids, legacy.id)
+      assert MapSet.member?(list_ids, shared.id)
+      refute MapSet.member?(list_ids, _private.id)
+
+      # user should see all 4
+      user_lists = Shopping.list_shopping_lists(household.id, user.id)
+      assert length(user_lists) == 4
     end
   end
 

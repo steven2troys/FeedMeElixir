@@ -143,7 +143,8 @@ defmodule FeedMeWeb.RecipeLive.Show do
         {:ok, _} = Recipes.delete_photo(photo)
         recipe = Recipes.get_recipe(socket.assigns.recipe.id, household_id)
         # Reset generating_image as safety valve in case state was stuck
-        {:noreply, assign(socket, recipe: recipe, generating_image: false, image_gen_task_ref: nil)}
+        {:noreply,
+         assign(socket, recipe: recipe, generating_image: false, image_gen_task_ref: nil)}
     end
   end
 
@@ -220,7 +221,8 @@ defmodule FeedMeWeb.RecipeLive.Show do
   end
 
   # Async task success
-  def handle_info({ref, {:ok, base64_data}}, socket) when ref == socket.assigns.image_gen_task_ref do
+  def handle_info({ref, {:ok, base64_data}}, socket)
+      when ref == socket.assigns.image_gen_task_ref do
     Process.demonitor(ref, [:flush])
     recipe = socket.assigns.recipe
 
@@ -254,7 +256,8 @@ defmodule FeedMeWeb.RecipeLive.Show do
   end
 
   # Async task error
-  def handle_info({ref, {:error, reason}}, socket) when ref == socket.assigns.image_gen_task_ref do
+  def handle_info({ref, {:error, reason}}, socket)
+      when ref == socket.assigns.image_gen_task_ref do
     Process.demonitor(ref, [:flush])
 
     {:noreply,
@@ -353,18 +356,15 @@ defmodule FeedMeWeb.RecipeLive.Show do
           disabled={@generating_image}
         >
           <%= if @generating_image do %>
-            <span class="loading loading-spinner loading-xs"></span>
-            Generating...
+            <span class="loading loading-spinner loading-xs"></span> Generating...
           <% else %>
-            <.icon name="hero-sparkles" class="size-4" />
-            AI Photo
+            <.icon name="hero-sparkles" class="size-4" /> AI Photo
           <% end %>
         </button>
 
         <%= if @recipe.photos != [] do %>
           <button phx-click="toggle_photo_actions" class="btn btn-ghost btn-sm">
-            <.icon name="hero-ellipsis-horizontal" class="size-4" />
-            Manage
+            <.icon name="hero-ellipsis-horizontal" class="size-4" /> Manage
           </button>
         <% end %>
       </div>

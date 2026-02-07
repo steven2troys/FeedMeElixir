@@ -14,7 +14,10 @@ defmodule FeedMe.Shopping.List do
     field :status, Ecto.Enum, values: [:active, :completed, :archived], default: :active
 
     belongs_to :household, FeedMe.Households.Household
+    belongs_to :created_by, FeedMe.Accounts.User
     has_many :items, FeedMe.Shopping.Item, foreign_key: :shopping_list_id
+    has_many :shares, FeedMe.Shopping.ListShare, foreign_key: :shopping_list_id
+    has_many :shared_with_users, through: [:shares, :user]
 
     timestamps(type: :utc_datetime)
   end
@@ -22,7 +25,7 @@ defmodule FeedMe.Shopping.List do
   @doc false
   def changeset(list, attrs) do
     list
-    |> cast(attrs, [:name, :is_main, :add_to_pantry, :status, :household_id])
+    |> cast(attrs, [:name, :is_main, :add_to_pantry, :status, :household_id, :created_by_id])
     |> validate_required([:name, :household_id])
     |> validate_length(:name, min: 1, max: 100)
     |> foreign_key_constraint(:household_id)
