@@ -83,6 +83,7 @@ defmodule FeedMe.Households do
                role: :admin
              })
              |> Repo.insert() do
+        FeedMe.Pantry.create_default_locations(household.id)
         household
       else
         {:error, changeset} -> Repo.rollback(changeset)

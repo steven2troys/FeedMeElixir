@@ -29,8 +29,8 @@
             assigns[:active_tab] != :pantry && "hover:bg-base-300 text-base-content"
           ]}
         >
-          <.icon name="hero-archive-box" class="size-5" />
-          <span class="font-medium">Pantry</span>
+          <.icon name="hero-inbox-stack" class="size-5" />
+          <span class="font-medium">On Hand</span>
         </.link>
 
         <.link
@@ -110,8 +110,8 @@
       <div class="flex items-center justify-around px-2 py-1">
         <FeedMeWeb.Layouts.mobile_tab_link
           href={~p"/households/#{@household.id}/pantry"}
-          icon="hero-archive-box"
-          label="Pantry"
+          icon="hero-inbox-stack"
+          label="On Hand"
           active={assigns[:active_tab] == :pantry}
         />
         <FeedMeWeb.Layouts.mobile_tab_link

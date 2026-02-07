@@ -15,6 +15,7 @@ defmodule FeedMe.Pantry.Category do
     field :icon, :string
 
     belongs_to :household, FeedMe.Households.Household
+    belongs_to :storage_location, FeedMe.Pantry.StorageLocation
     has_many :items, FeedMe.Pantry.Item
 
     timestamps(type: :utc_datetime)
@@ -23,10 +24,11 @@ defmodule FeedMe.Pantry.Category do
   @doc false
   def changeset(category, attrs) do
     category
-    |> cast(attrs, [:name, :sort_order, :icon, :household_id])
-    |> validate_required([:name, :household_id])
+    |> cast(attrs, [:name, :sort_order, :icon, :household_id, :storage_location_id])
+    |> validate_required([:name, :household_id, :storage_location_id])
     |> validate_length(:name, min: 1, max: 100)
     |> foreign_key_constraint(:household_id)
-    |> unique_constraint([:household_id, :name])
+    |> foreign_key_constraint(:storage_location_id)
+    |> unique_constraint([:storage_location_id, :name])
   end
 end

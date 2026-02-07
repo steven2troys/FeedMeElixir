@@ -1,22 +1,266 @@
 defmodule FeedMe.Pantry do
   @moduledoc """
-  The Pantry context manages inventory, categories, and transactions.
+  The Pantry context manages inventory, categories, storage locations, and transactions.
   """
 
   import Ecto.Query, warn: false
-  alias FeedMe.Pantry.{Category, Item, Transaction}
+  alias FeedMe.Pantry.{Category, Item, StorageLocation, Transaction}
   alias FeedMe.Repo
 
   @pubsub FeedMe.PubSub
+
+  # =============================================================================
+  # Category Templates
+  # =============================================================================
+
+  @category_templates %{
+    pantry: [
+      %{name: "Produce", icon: "hero-leaf", sort_order: 0},
+      %{name: "Dairy", icon: "hero-beaker", sort_order: 1},
+      %{name: "Meat & Seafood", icon: "hero-fire", sort_order: 2},
+      %{name: "Pantry Staples", icon: "hero-archive-box", sort_order: 3},
+      %{name: "Frozen", icon: "hero-cube", sort_order: 4},
+      %{name: "Beverages", icon: "hero-beaker", sort_order: 5},
+      %{name: "Snacks", icon: "hero-cake", sort_order: 6},
+      %{name: "Condiments", icon: "hero-adjustments-horizontal", sort_order: 7}
+    ],
+    garage: [
+      %{name: "Tools", icon: "hero-wrench-screwdriver", sort_order: 0},
+      %{name: "Automotive", icon: "hero-truck", sort_order: 1},
+      %{name: "Cleaning Supplies", icon: "hero-sparkles", sort_order: 2},
+      %{name: "Hardware", icon: "hero-cog-6-tooth", sort_order: 3},
+      %{name: "Paint & Supplies", icon: "hero-swatch", sort_order: 4},
+      %{name: "Outdoor/Garden", icon: "hero-sun", sort_order: 5}
+    ],
+    bulk_storage: [
+      %{name: "Paper Products", icon: "hero-document", sort_order: 0},
+      %{name: "Canned Goods", icon: "hero-archive-box", sort_order: 1},
+      %{name: "Cleaning Supplies", icon: "hero-sparkles", sort_order: 2},
+      %{name: "Personal Care", icon: "hero-heart", sort_order: 3},
+      %{name: "Beverages", icon: "hero-beaker", sort_order: 4}
+    ],
+    pet_supplies: [
+      %{name: "Food & Treats", icon: "hero-cake", sort_order: 0},
+      %{name: "Medications", icon: "hero-heart", sort_order: 1},
+      %{name: "Toys & Accessories", icon: "hero-gift", sort_order: 2},
+      %{name: "Grooming", icon: "hero-sparkles", sort_order: 3}
+    ],
+    garden_shed: [
+      %{name: "Hand Tools", icon: "hero-wrench-screwdriver", sort_order: 0},
+      %{name: "Seeds & Bulbs", icon: "hero-leaf", sort_order: 1},
+      %{name: "Fertilizers & Soil", icon: "hero-beaker", sort_order: 2},
+      %{name: "Pots & Planters", icon: "hero-archive-box", sort_order: 3},
+      %{name: "Pest Control", icon: "hero-shield-check", sort_order: 4}
+    ]
+  }
+
+  def category_templates, do: @category_templates
+
+  @doc """
+  Suggests a category template key based on the location name.
+  """
+  def suggest_template(name) do
+    downcased = String.downcase(name)
+
+    cond do
+      String.contains?(downcased, "pantry") -> :pantry
+      String.contains?(downcased, "garage") -> :garage
+      String.contains?(downcased, "bulk") -> :bulk_storage
+      String.contains?(downcased, "pet") -> :pet_supplies
+      String.contains?(downcased, "garden") or String.contains?(downcased, "shed") -> :garden_shed
+      true -> nil
+    end
+  end
+
+  # =============================================================================
+  # Storage Locations
+  # =============================================================================
+
+  @doc """
+  Lists all storage locations for a household, ordered by sort_order then name.
+  """
+  def list_storage_locations(household_id) do
+    StorageLocation
+    |> where([l], l.household_id == ^household_id)
+    |> order_by([l], asc: l.sort_order, asc: l.name)
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a storage location by ID.
+  """
+  def get_storage_location(id), do: Repo.get(StorageLocation, id)
+
+  @doc """
+  Gets a storage location by ID, ensuring it belongs to the household.
+  """
+  def get_storage_location(id, household_id) do
+    StorageLocation
+    |> where([l], l.id == ^id and l.household_id == ^household_id)
+    |> Repo.one()
+  end
+
+  @doc """
+  Gets the default "On Hand" catch-all storage location for a household.
+  """
+  def get_default_storage_location(household_id) do
+    StorageLocation
+    |> where([l], l.household_id == ^household_id and l.is_default == true)
+    |> Repo.one()
+  end
+
+  @doc """
+  Gets the "Pantry" storage location for a household.
+  """
+  def get_pantry_location(household_id) do
+    StorageLocation
+    |> where(
+      [l],
+      l.household_id == ^household_id and l.name == "Pantry" and l.is_default == false
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Creates a storage location. Pass `template: :pantry` (or other key) in opts
+  to auto-create categories from a template.
+  """
+  def create_storage_location(attrs, opts \\ []) do
+    result =
+      %StorageLocation{}
+      |> StorageLocation.changeset(attrs)
+      |> Repo.insert()
+
+    case result do
+      {:ok, location} ->
+        template = Keyword.get(opts, :template)
+
+        if template do
+          create_default_categories(location.id, location.household_id, template)
+        end
+
+        broadcast(:pantry, location.household_id, {:storage_location_created, location})
+        {:ok, location}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Updates a storage location.
+  """
+  def update_storage_location(%StorageLocation{} = location, attrs) do
+    location
+    |> StorageLocation.changeset(attrs)
+    |> Repo.update()
+    |> tap(fn
+      {:ok, updated} ->
+        broadcast(:pantry, updated.household_id, {:storage_location_updated, updated})
+
+      _ ->
+        :ok
+    end)
+  end
+
+  @doc """
+  Deletes a non-default storage location. Moves its items to the "On Hand"
+  catch-all location (nilifying their category_id since categories are
+  location-scoped). Categories are cascade-deleted by the DB.
+  """
+  def delete_storage_location(%StorageLocation{is_default: true}),
+    do: {:error, :cannot_delete_default}
+
+  def delete_storage_location(%StorageLocation{} = location) do
+    default = get_default_storage_location(location.household_id)
+
+    Repo.transaction(fn ->
+      # Move items to default location, clear category
+      Item
+      |> where([i], i.storage_location_id == ^location.id)
+      |> Repo.update_all(set: [storage_location_id: default.id, category_id: nil])
+
+      case Repo.delete(location) do
+        {:ok, deleted} ->
+          broadcast(:pantry, deleted.household_id, {:storage_location_deleted, deleted})
+          deleted
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  @doc """
+  Reorders storage locations by setting their sort_order.
+  """
+  def reorder_storage_locations(household_id, location_ids) do
+    Repo.transaction(fn ->
+      location_ids
+      |> Enum.with_index()
+      |> Enum.each(fn {id, index} ->
+        StorageLocation
+        |> where([l], l.id == ^id and l.household_id == ^household_id)
+        |> Repo.update_all(set: [sort_order: index])
+      end)
+    end)
+  end
+
+  @doc """
+  Creates the default "On Hand" + "Pantry" locations for a new household.
+  Returns {on_hand, pantry}.
+  """
+  def create_default_locations(household_id) do
+    {:ok, on_hand} =
+      create_storage_location(%{
+        name: "On Hand",
+        icon: "hero-inbox-stack",
+        sort_order: 0,
+        is_default: true,
+        household_id: household_id
+      })
+
+    {:ok, pantry} =
+      create_storage_location(
+        %{
+          name: "Pantry",
+          icon: "hero-archive-box",
+          sort_order: 1,
+          is_default: false,
+          household_id: household_id
+        },
+        template: :pantry
+      )
+
+    {on_hand, pantry}
+  end
+
+  @doc """
+  Moves an item to a different storage location, nilifying its category
+  since categories are scoped to locations.
+  """
+  def move_item_to_location(%Item{} = item, storage_location_id) do
+    update_item(item, %{storage_location_id: storage_location_id, category_id: nil})
+  end
 
   # =============================================================================
   # Categories
   # =============================================================================
 
   @doc """
-  Lists all categories for a household, ordered by sort_order.
+  Lists all categories for a storage location, ordered by sort_order.
   """
-  def list_categories(household_id) do
+  def list_categories(storage_location_id) do
+    Category
+    |> where([c], c.storage_location_id == ^storage_location_id)
+    |> order_by([c], asc: c.sort_order, asc: c.name)
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all categories for a household (across all locations).
+  """
+  def list_all_categories(household_id) do
     Category
     |> where([c], c.household_id == ^household_id)
     |> order_by([c], asc: c.sort_order, asc: c.name)
@@ -90,41 +334,47 @@ defmodule FeedMe.Pantry do
   end
 
   @doc """
-  Gets a category by name for a household.
+  Gets a category by name within a storage location.
   """
-  def get_category_by_name(household_id, name) do
+  def get_category_by_name(storage_location_id, name) do
     Category
-    |> where([c], c.household_id == ^household_id and c.name == ^name)
+    |> where([c], c.storage_location_id == ^storage_location_id and c.name == ^name)
     |> Repo.one()
   end
 
   @doc """
-  Finds or creates a category by name.
+  Finds or creates a category by name within a storage location.
+  Requires household_id for the category record.
   """
-  def find_or_create_category(household_id, name) do
-    case get_category_by_name(household_id, name) do
-      nil -> create_category(%{name: name, household_id: household_id})
-      category -> {:ok, category}
+  def find_or_create_category(storage_location_id, name) do
+    location = get_storage_location(storage_location_id)
+
+    case get_category_by_name(storage_location_id, name) do
+      nil ->
+        create_category(%{
+          name: name,
+          household_id: location.household_id,
+          storage_location_id: storage_location_id
+        })
+
+      category ->
+        {:ok, category}
     end
   end
 
   @doc """
-  Creates default categories for a new household.
+  Creates default categories for a storage location from a template.
   """
-  def create_default_categories(household_id) do
-    default_categories = [
-      %{name: "Produce", icon: "hero-leaf", sort_order: 0},
-      %{name: "Dairy", icon: "hero-beaker", sort_order: 1},
-      %{name: "Meat & Seafood", icon: "hero-fire", sort_order: 2},
-      %{name: "Pantry Staples", icon: "hero-archive-box", sort_order: 3},
-      %{name: "Frozen", icon: "hero-cube", sort_order: 4},
-      %{name: "Beverages", icon: "hero-beaker", sort_order: 5},
-      %{name: "Snacks", icon: "hero-cake", sort_order: 6},
-      %{name: "Condiments", icon: "hero-adjustments-horizontal", sort_order: 7}
-    ]
+  def create_default_categories(storage_location_id, household_id, template \\ :pantry) do
+    categories = Map.get(@category_templates, template, @category_templates[:pantry])
 
-    Enum.each(default_categories, fn attrs ->
-      create_category(Map.put(attrs, :household_id, household_id))
+    Enum.each(categories, fn attrs ->
+      create_category(
+        Map.merge(attrs, %{
+          household_id: household_id,
+          storage_location_id: storage_location_id
+        })
+      )
     end)
   end
 
@@ -133,13 +383,25 @@ defmodule FeedMe.Pantry do
   # =============================================================================
 
   @doc """
-  Lists all items for a household.
+  Lists all items for a household, with optional filtering.
+
+  ## Options
+    * `:storage_location_id` - scope to a specific storage location
+    * `:category_id` - filter by category (or `:uncategorized`)
+    * `:needs_restock` - when true, only return items needing restock
+    * `:order_by` - `:name`, `:expiration`, or `:quantity`
   """
   def list_items(household_id, opts \\ []) do
     query =
       Item
       |> where([i], i.household_id == ^household_id)
       |> preload(:category)
+
+    query =
+      case Keyword.get(opts, :storage_location_id) do
+        nil -> query
+        id -> where(query, [i], i.storage_location_id == ^id)
+      end
 
     query =
       case Keyword.get(opts, :category_id) do
@@ -224,7 +486,6 @@ defmodule FeedMe.Pantry do
   Creates an item with user tracking.
   """
   def create_item(attrs, _user) do
-    # User tracking could be added here if needed
     create_item(attrs)
   end
 
@@ -258,7 +519,6 @@ defmodule FeedMe.Pantry do
     quantity_before = item.quantity
     quantity_after = Decimal.add(item.quantity, change)
 
-    # Ensure quantity doesn't go negative
     quantity_after =
       if Decimal.compare(quantity_after, Decimal.new(0)) == :lt do
         Decimal.new(0)
@@ -267,10 +527,8 @@ defmodule FeedMe.Pantry do
       end
 
     Repo.transaction(fn ->
-      # Update item quantity
       {:ok, updated_item} = update_item(item, %{quantity: quantity_after})
 
-      # Create transaction record
       {:ok, _transaction} =
         create_transaction(%{
           action: action,
@@ -283,7 +541,6 @@ defmodule FeedMe.Pantry do
           user_id: user && user.id
         })
 
-      # Check if item needs restocking
       if Item.needs_restock?(updated_item) do
         broadcast(:pantry, item.household_id, {:restock_needed, updated_item})
       end
@@ -374,17 +631,25 @@ defmodule FeedMe.Pantry do
   end
 
   @doc """
-  Searches items by name.
+  Searches items by name, optionally scoped to a storage location.
   """
-  def search_items(household_id, query) do
+  def search_items(household_id, query, opts \\ []) do
     search_term = "%#{query}%"
 
-    Item
-    |> where([i], i.household_id == ^household_id)
-    |> where([i], ilike(i.name, ^search_term))
-    |> order_by([i], asc: i.name)
-    |> preload(:category)
-    |> Repo.all()
+    db_query =
+      Item
+      |> where([i], i.household_id == ^household_id)
+      |> where([i], ilike(i.name, ^search_term))
+      |> order_by([i], asc: i.name)
+      |> preload(:category)
+
+    db_query =
+      case Keyword.get(opts, :storage_location_id) do
+        nil -> db_query
+        id -> where(db_query, [i], i.storage_location_id == ^id)
+      end
+
+    Repo.all(db_query)
   end
 
   # =============================================================================

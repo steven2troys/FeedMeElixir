@@ -147,8 +147,10 @@ defmodule FeedMeWeb.ShoppingLive.Index do
                         <.icon name="hero-share" class="size-3 mr-1" />Shared
                       </span>
                     <% end %>
-                    <%= if list.add_to_pantry do %>
-                      <span class="badge badge-sm badge-accent">auto-pantry</span>
+                    <%= if list.auto_add_to_location do %>
+                      <span class="badge badge-sm badge-accent">
+                        &rarr; {list.auto_add_to_location.name}
+                      </span>
                     <% end %>
                     <span class={[
                       "badge badge-sm",

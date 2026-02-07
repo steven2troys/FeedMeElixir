@@ -5,19 +5,25 @@ defmodule FeedMeWeb.PantryLive.Show do
   alias FeedMe.Pantry.Item
 
   @impl true
-  def mount(%{"id" => item_id}, _session, socket) do
-    # household and role are set by HouseholdHooks
+  def mount(params, _session, socket) do
     household = socket.assigns.household
+    item_id = params["id"]
+    location_id = params["location_id"]
+
     item = Pantry.get_item(item_id, household.id)
 
     if item do
       transactions = Pantry.list_transactions_for_item(item.id, limit: 20)
+      locations = Pantry.list_storage_locations(household.id)
+      location = if location_id, do: Pantry.get_storage_location(location_id, household.id)
 
       {:ok,
        socket
        |> assign(:active_tab, :pantry)
        |> assign(:item, item)
        |> assign(:transactions, transactions)
+       |> assign(:locations, locations)
+       |> assign(:current_location, location)
        |> assign(:page_title, item.name)}
     else
       {:ok,
@@ -36,8 +42,8 @@ defmodule FeedMeWeb.PantryLive.Show do
 
       {:noreply,
        socket
-       |> put_flash(:info, "#{item.name} removed from pantry")
-       |> push_navigate(to: ~p"/households/#{socket.assigns.household.id}/pantry")}
+       |> put_flash(:info, "#{item.name} removed from inventory")
+       |> push_navigate(to: back_path(socket.assigns))}
     else
       {:noreply, put_flash(socket, :error, "Item not found")}
     end
@@ -56,6 +62,18 @@ defmodule FeedMeWeb.PantryLive.Show do
      |> assign(:transactions, Pantry.list_transactions_for_item(item.id, limit: 20))}
   end
 
+  def handle_event("move_item", %{"location_id" => location_id}, socket) do
+    item = socket.assigns.item
+
+    {:ok, updated} = Pantry.move_item_to_location(item, location_id)
+    location = Pantry.get_storage_location(location_id)
+
+    {:noreply,
+     socket
+     |> assign(:item, Pantry.get_item(updated.id))
+     |> put_flash(:info, "Moved to #{location.name}")}
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -66,6 +84,27 @@ defmodule FeedMeWeb.PantryLive.Show do
           {if @item.category, do: @item.category.name, else: "Uncategorized"}
         </:subtitle>
         <:actions>
+          <%!-- Move to dropdown --%>
+          <div class="dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+              <.icon name="hero-arrow-right" class="size-4" /> Move to
+            </div>
+            <ul
+              tabindex="0"
+              class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-48"
+            >
+              <%= for loc <- @locations, loc.id != @item.storage_location_id do %>
+                <li>
+                  <button phx-click="move_item" phx-value-location_id={loc.id}>
+                    <%= if loc.icon do %>
+                      <.icon name={loc.icon} class="size-4" />
+                    <% end %>
+                    {loc.name}
+                  </button>
+                </li>
+              <% end %>
+            </ul>
+          </div>
           <button
             phx-click="delete"
             phx-value-id={@item.id}
@@ -187,8 +226,15 @@ defmodule FeedMeWeb.PantryLive.Show do
         <% end %>
       </div>
 
-      <.back navigate={~p"/households/#{@household.id}/pantry"}>Back to pantry</.back>
+      <.back navigate={back_path(assigns)}>Back to inventory</.back>
     </div>
     """
+  end
+
+  defp back_path(assigns) do
+    case assigns.current_location do
+      nil -> ~p"/households/#{assigns.household.id}/pantry"
+      loc -> ~p"/households/#{assigns.household.id}/pantry/locations/#{loc.id}"
+    end
   end
 end

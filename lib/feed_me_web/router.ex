@@ -86,8 +86,15 @@ defmodule FeedMeWeb.Router do
       live "/households/:id/members/:member_id/edit", HouseholdLive.Members, :edit_member
       live "/households/:id/invite", HouseholdLive.Members, :invite
 
-      # Pantry routes
+      # Pantry routes (base redirects to default location)
       live "/households/:household_id/pantry", PantryLive.Index, :index
+      live "/households/:household_id/pantry/locations/:location_id", PantryLive.Index, :index
+      live "/households/:household_id/pantry/locations/:location_id/:id", PantryLive.Show, :show
+
+      live "/households/:household_id/pantry/locations/:location_id/categories",
+           PantryLive.Categories,
+           :index
+
       live "/households/:household_id/pantry/:id", PantryLive.Show, :show
       live "/households/:household_id/pantry/categories", PantryLive.Categories, :index
 

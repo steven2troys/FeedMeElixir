@@ -5,24 +5,46 @@ defmodule FeedMeWeb.PantryLive.Categories do
   alias FeedMe.Pantry.Category
 
   @impl true
-  def mount(_params, _session, socket) do
-    # household and role are set by HouseholdHooks
+  def mount(params, _session, socket) do
     household = socket.assigns.household
-    categories = Pantry.list_categories(household.id)
+    location_id = params["location_id"]
 
-    {:ok,
-     socket
-     |> assign(:active_tab, :pantry)
-     |> assign(:categories, categories)
-     |> assign(:editing, nil)
-     |> assign(:new_category, nil)
-     |> assign(:page_title, "Pantry Categories")}
+    location =
+      if location_id do
+        Pantry.get_storage_location(location_id, household.id)
+      else
+        Pantry.get_pantry_location(household.id) ||
+          Pantry.get_default_storage_location(household.id)
+      end
+
+    if location do
+      categories = Pantry.list_categories(location.id)
+
+      {:ok,
+       socket
+       |> assign(:active_tab, :pantry)
+       |> assign(:location, location)
+       |> assign(:categories, categories)
+       |> assign(:editing, nil)
+       |> assign(:new_category, nil)
+       |> assign(:page_title, "#{location.name} Categories")}
+    else
+      {:ok,
+       socket
+       |> put_flash(:error, "Location not found")
+       |> push_navigate(to: ~p"/households/#{household.id}/pantry")}
+    end
   end
 
   @impl true
   def handle_event("new", _params, socket) do
+    location = socket.assigns.location
+
     {:noreply,
-     assign(socket, :new_category, %Category{household_id: socket.assigns.household.id})}
+     assign(socket, :new_category, %Category{
+       household_id: socket.assigns.household.id,
+       storage_location_id: location.id
+     })}
   end
 
   def handle_event("cancel_new", _params, socket) do
@@ -30,7 +52,12 @@ defmodule FeedMeWeb.PantryLive.Categories do
   end
 
   def handle_event("create", %{"category" => params}, socket) do
-    params = Map.put(params, "household_id", socket.assigns.household.id)
+    location = socket.assigns.location
+
+    params =
+      params
+      |> Map.put("household_id", socket.assigns.household.id)
+      |> Map.put("storage_location_id", location.id)
 
     case Pantry.create_category(params) do
       {:ok, _category} ->
@@ -38,7 +65,7 @@ defmodule FeedMeWeb.PantryLive.Categories do
          socket
          |> put_flash(:info, "Category created")
          |> assign(:new_category, nil)
-         |> assign(:categories, Pantry.list_categories(socket.assigns.household.id))}
+         |> assign(:categories, Pantry.list_categories(location.id))}
 
       {:error, changeset} ->
         {:noreply,
@@ -56,13 +83,15 @@ defmodule FeedMeWeb.PantryLive.Categories do
   end
 
   def handle_event("update", %{"category" => params}, socket) do
+    location = socket.assigns.location
+
     case Pantry.update_category(socket.assigns.editing, params) do
       {:ok, _category} ->
         {:noreply,
          socket
          |> put_flash(:info, "Category updated")
          |> assign(:editing, nil)
-         |> assign(:categories, Pantry.list_categories(socket.assigns.household.id))}
+         |> assign(:categories, Pantry.list_categories(location.id))}
 
       {:error, changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to update: #{error_messages(changeset)}")}
@@ -71,6 +100,7 @@ defmodule FeedMeWeb.PantryLive.Categories do
 
   def handle_event("delete", %{"id" => id}, socket) do
     category = Pantry.get_category(id, socket.assigns.household.id)
+    location = socket.assigns.location
 
     if category do
       case Pantry.delete_category(category) do
@@ -78,7 +108,7 @@ defmodule FeedMeWeb.PantryLive.Categories do
           {:noreply,
            socket
            |> put_flash(:info, "Category deleted")
-           |> assign(:categories, Pantry.list_categories(socket.assigns.household.id))}
+           |> assign(:categories, Pantry.list_categories(location.id))}
 
         {:error, _} ->
           {:noreply, put_flash(socket, :error, "Failed to delete category")}
@@ -89,12 +119,14 @@ defmodule FeedMeWeb.PantryLive.Categories do
   end
 
   def handle_event("create_defaults", _params, socket) do
-    Pantry.create_default_categories(socket.assigns.household.id)
+    location = socket.assigns.location
+    template = Pantry.suggest_template(location.name) || :pantry
+    Pantry.create_default_categories(location.id, socket.assigns.household.id, template)
 
     {:noreply,
      socket
      |> put_flash(:info, "Default categories created")
-     |> assign(:categories, Pantry.list_categories(socket.assigns.household.id))}
+     |> assign(:categories, Pantry.list_categories(location.id))}
   end
 
   defp error_messages(changeset) do
@@ -108,7 +140,7 @@ defmodule FeedMeWeb.PantryLive.Categories do
     ~H"""
     <div class="mx-auto max-w-2xl">
       <.header>
-        Pantry Categories
+        {@location.name} Categories
         <:subtitle>{@household.name}</:subtitle>
         <:actions>
           <button phx-click="new" class="btn btn-primary btn-sm">
@@ -193,7 +225,9 @@ defmodule FeedMeWeb.PantryLive.Categories do
         <% end %>
       </div>
 
-      <.back navigate={~p"/households/#{@household.id}/pantry"}>Back to pantry</.back>
+      <.back navigate={~p"/households/#{@household.id}/pantry/locations/#{@location.id}"}>
+        Back to {@location.name}
+      </.back>
     </div>
     """
   end

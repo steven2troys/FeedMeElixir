@@ -25,7 +25,8 @@ defmodule FeedMeWeb.ShoppingLive.Show do
           if connected?(socket), do: Shopping.subscribe(household.id)
 
           is_owner = is_nil(list.created_by_id) or list.created_by_id == user.id
-          categories = Pantry.list_categories(household.id)
+          categories = Pantry.list_all_categories(household.id)
+          storage_locations = Pantry.list_storage_locations(household.id)
           token = Phoenix.Token.sign(FeedMeWeb.Endpoint, "user socket", user.id)
 
           {:ok,
@@ -34,6 +35,7 @@ defmodule FeedMeWeb.ShoppingLive.Show do
            |> assign(:list, list)
            |> assign(:is_owner, is_owner)
            |> assign(:categories, categories)
+           |> assign(:storage_locations, storage_locations)
            |> assign(:socket_token, token)
            |> assign(:new_item_name, "")
            |> assign(:page_title, list.name)}
@@ -146,6 +148,29 @@ defmodule FeedMeWeb.ShoppingLive.Show do
     new_value = !list.add_to_pantry
 
     case Shopping.update_list(list, %{add_to_pantry: new_value}) do
+      {:ok, _updated} ->
+        list = Shopping.get_list_with_items(list.id, socket.assigns.household.id)
+        {:noreply, assign(socket, list: list)}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to update setting")}
+    end
+  end
+
+  def handle_event("set_auto_add_location", %{"location_id" => location_id}, socket) do
+    list = socket.assigns.list
+
+    {location_id, add_to_pantry} =
+      if location_id == "" do
+        {nil, false}
+      else
+        {location_id, true}
+      end
+
+    case Shopping.update_list(list, %{
+           auto_add_to_location_id: location_id,
+           add_to_pantry: add_to_pantry
+         }) do
       {:ok, _updated} ->
         list = Shopping.get_list_with_items(list.id, socket.assigns.household.id)
         {:noreply, assign(socket, list: list)}
@@ -311,18 +336,21 @@ defmodule FeedMeWeb.ShoppingLive.Show do
       </.modal>
 
       <div class="mt-4 flex items-center gap-2">
-        <label class="label cursor-pointer gap-2">
-          <span class="label-text text-sm">Auto-add to pantry</span>
-          <input
-            type="checkbox"
-            class="toggle toggle-primary toggle-sm"
-            checked={@list.add_to_pantry}
-            disabled={@list.is_main}
-            phx-click="toggle_add_to_pantry"
-          />
+        <label class="label">
+          <span class="label-text text-sm">Auto-add to:</span>
         </label>
+        <form phx-change="set_auto_add_location">
+          <select name="location_id" class="select select-bordered select-sm">
+            <option value="" selected={is_nil(@list.auto_add_to_location_id)}>None</option>
+            <%= for loc <- @storage_locations, not loc.is_default do %>
+              <option value={loc.id} selected={@list.auto_add_to_location_id == loc.id}>
+                {loc.name}
+              </option>
+            <% end %>
+          </select>
+        </form>
         <%= if @list.is_main do %>
-          <span class="text-xs text-base-content/50">(always on)</span>
+          <span class="text-xs text-base-content/50">(defaults to Pantry)</span>
         <% end %>
       </div>
 

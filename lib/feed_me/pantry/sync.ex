@@ -1,6 +1,6 @@
 defmodule FeedMe.Pantry.Sync do
   @moduledoc """
-  GenServer that accumulates checked shopping list items per household,
+  GenServer that accumulates checked shopping list items per household+location,
   waits for a debounce period, then fires one AI call to intelligently
   sync them into the pantry (fuzzy matching, unit conversion, etc.).
   """
@@ -22,35 +22,38 @@ defmodule FeedMe.Pantry.Sync do
   end
 
   @doc """
-  Queue a checked shopping item for pantry sync.
+  Queue a checked shopping item for pantry sync to a specific storage location.
   """
-  def queue_item(household_id, item_attrs) do
+  def queue_item(household_id, storage_location_id, item_attrs) do
     if enabled?() do
-      GenServer.cast(__MODULE__, {:queue_item, household_id, item_attrs})
+      GenServer.cast(__MODULE__, {:queue_item, household_id, storage_location_id, item_attrs})
     end
   end
 
   @doc """
   Remove an item from the queue (e.g., when unchecked before flush).
   """
-  def dequeue_item(household_id, shopping_item_id) do
+  def dequeue_item(household_id, storage_location_id, shopping_item_id) do
     if enabled?() do
-      GenServer.cast(__MODULE__, {:dequeue_item, household_id, shopping_item_id})
+      GenServer.cast(
+        __MODULE__,
+        {:dequeue_item, household_id, storage_location_id, shopping_item_id}
+      )
     end
   end
 
   @doc """
-  Immediately process pending items for a household. Useful for testing.
+  Immediately process pending items for a household+location. Useful for testing.
   """
-  def flush(household_id) do
-    GenServer.call(__MODULE__, {:flush, household_id})
+  def flush(household_id, storage_location_id) do
+    GenServer.call(__MODULE__, {:flush, household_id, storage_location_id})
   end
 
   @doc """
-  Returns the number of pending items for a household.
+  Returns the number of pending items for a household+location.
   """
-  def pending_count(household_id) do
-    GenServer.call(__MODULE__, {:pending_count, household_id})
+  def pending_count(household_id, storage_location_id) do
+    GenServer.call(__MODULE__, {:pending_count, household_id, storage_location_id})
   end
 
   # =============================================================================
@@ -63,9 +66,14 @@ defmodule FeedMe.Pantry.Sync do
   end
 
   @impl true
-  def handle_cast({:queue_item, household_id, item_attrs}, state) do
-    Logger.info("Pantry.Sync: Queued item '#{item_attrs.name}' for household #{household_id}")
-    entry = Map.get(state, household_id, %{items: [], timer_ref: nil})
+  def handle_cast({:queue_item, household_id, storage_location_id, item_attrs}, state) do
+    key = {household_id, storage_location_id}
+
+    Logger.info(
+      "Pantry.Sync: Queued item '#{item_attrs.name}' for household #{household_id} location #{storage_location_id}"
+    )
+
+    entry = Map.get(state, key, %{items: [], timer_ref: nil})
 
     # Cancel existing timer
     if entry.timer_ref, do: Process.cancel_timer(entry.timer_ref)
@@ -77,14 +85,17 @@ defmodule FeedMe.Pantry.Sync do
       |> List.insert_at(-1, item_attrs)
 
     # Start new debounce timer
-    timer_ref = Process.send_after(self(), {:flush, household_id}, debounce_ms())
+    timer_ref =
+      Process.send_after(self(), {:flush, household_id, storage_location_id}, debounce_ms())
 
-    {:noreply, Map.put(state, household_id, %{items: items, timer_ref: timer_ref})}
+    {:noreply, Map.put(state, key, %{items: items, timer_ref: timer_ref})}
   end
 
   @impl true
-  def handle_cast({:dequeue_item, household_id, shopping_item_id}, state) do
-    case Map.get(state, household_id) do
+  def handle_cast({:dequeue_item, household_id, storage_location_id, shopping_item_id}, state) do
+    key = {household_id, storage_location_id}
+
+    case Map.get(state, key) do
       nil ->
         {:noreply, state}
 
@@ -92,18 +103,19 @@ defmodule FeedMe.Pantry.Sync do
         items = Enum.reject(entry.items, &(&1.shopping_item_id == shopping_item_id))
 
         if items == [] do
-          # No more items — cancel timer, remove household entry
           if entry.timer_ref, do: Process.cancel_timer(entry.timer_ref)
-          {:noreply, Map.delete(state, household_id)}
+          {:noreply, Map.delete(state, key)}
         else
-          {:noreply, Map.put(state, household_id, %{entry | items: items})}
+          {:noreply, Map.put(state, key, %{entry | items: items})}
         end
     end
   end
 
   @impl true
-  def handle_call({:flush, household_id}, _from, state) do
-    case Map.pop(state, household_id) do
+  def handle_call({:flush, household_id, storage_location_id}, _from, state) do
+    key = {household_id, storage_location_id}
+
+    case Map.pop(state, key) do
       {nil, state} ->
         {:reply, :ok, state}
 
@@ -111,7 +123,7 @@ defmodule FeedMe.Pantry.Sync do
         if entry.timer_ref, do: Process.cancel_timer(entry.timer_ref)
 
         if entry.items != [] do
-          do_sync(household_id, entry.items)
+          do_sync(household_id, storage_location_id, entry.items)
         end
 
         {:reply, :ok, state}
@@ -119,9 +131,11 @@ defmodule FeedMe.Pantry.Sync do
   end
 
   @impl true
-  def handle_call({:pending_count, household_id}, _from, state) do
+  def handle_call({:pending_count, household_id, storage_location_id}, _from, state) do
+    key = {household_id, storage_location_id}
+
     count =
-      case Map.get(state, household_id) do
+      case Map.get(state, key) do
         nil -> 0
         entry -> length(entry.items)
       end
@@ -130,19 +144,21 @@ defmodule FeedMe.Pantry.Sync do
   end
 
   @impl true
-  def handle_info({:flush, household_id}, state) do
-    case Map.pop(state, household_id) do
+  def handle_info({:flush, household_id, storage_location_id}, state) do
+    key = {household_id, storage_location_id}
+
+    case Map.pop(state, key) do
       {nil, state} ->
         {:noreply, state}
 
       {entry, state} ->
         if entry.items != [] do
           Logger.info(
-            "Pantry.Sync: Flushing #{length(entry.items)} items for household #{household_id}"
+            "Pantry.Sync: Flushing #{length(entry.items)} items for household #{household_id} location #{storage_location_id}"
           )
 
           Task.Supervisor.start_child(FeedMe.Pantry.SyncTaskSupervisor, fn ->
-            do_sync(household_id, entry.items)
+            do_sync(household_id, storage_location_id, entry.items)
           end)
         end
 
@@ -155,22 +171,24 @@ defmodule FeedMe.Pantry.Sync do
   # =============================================================================
 
   @doc false
-  def do_sync(household_id, items) do
+  def do_sync(household_id, storage_location_id, items) do
     Logger.info("Pantry.Sync: Starting sync for #{length(items)} items")
 
     with api_key_record when not is_nil(api_key_record) <-
            FeedMe.AI.get_api_key(household_id, "openrouter"),
          decrypted_key when is_binary(decrypted_key) <- ApiKey.decrypt_key(api_key_record) do
       household = Households.get_household(household_id)
+      location = Pantry.get_storage_location(storage_location_id)
       model = (household && household.selected_model) || "anthropic/claude-3.5-sonnet"
 
-      pantry_items = Pantry.list_items(household_id)
-      categories = Pantry.list_categories(household_id)
+      pantry_items = Pantry.list_items(household_id, storage_location_id: storage_location_id)
+      categories = Pantry.list_categories(storage_location_id)
 
-      messages = build_messages(pantry_items, categories, items)
+      location_name = if location, do: location.name, else: "Unknown"
+      messages = build_messages(pantry_items, categories, items, location_name)
       tools = tool_definitions()
 
-      run_ai_loop(decrypted_key, messages, tools, model, household_id, 0)
+      run_ai_loop(decrypted_key, messages, tools, model, household_id, storage_location_id, 0)
     else
       nil ->
         Logger.warning(
@@ -181,16 +199,17 @@ defmodule FeedMe.Pantry.Sync do
     end
   end
 
-  defp run_ai_loop(_api_key, _messages, _tools, _model, _household_id, round) when round >= 3 do
+  defp run_ai_loop(_api_key, _messages, _tools, _model, _hid, _lid, round) when round >= 3 do
     Logger.warning("Pantry.Sync: Reached max rounds (3), stopping")
     :ok
   end
 
-  defp run_ai_loop(api_key, messages, tools, model, household_id, round) do
+  defp run_ai_loop(api_key, messages, tools, model, household_id, storage_location_id, round) do
     case OpenRouter.chat(api_key, messages, model: model, tools: tools) do
       {:ok, response} ->
         if response.tool_calls && response.tool_calls != [] do
-          tool_results = execute_tool_calls(response.tool_calls, household_id)
+          tool_results =
+            execute_tool_calls(response.tool_calls, household_id, storage_location_id)
 
           updated_messages =
             messages ++
@@ -201,7 +220,15 @@ defmodule FeedMe.Pantry.Sync do
                   end)
               ]
 
-          run_ai_loop(api_key, updated_messages, tools, model, household_id, round + 1)
+          run_ai_loop(
+            api_key,
+            updated_messages,
+            tools,
+            model,
+            household_id,
+            storage_location_id,
+            round + 1
+          )
         else
           Logger.info("Pantry.Sync: Completed for household #{household_id}")
           :ok
@@ -216,13 +243,13 @@ defmodule FeedMe.Pantry.Sync do
     end
   end
 
-  defp execute_tool_calls(tool_calls, household_id) do
+  defp execute_tool_calls(tool_calls, household_id, storage_location_id) do
     Enum.map(tool_calls, fn tool_call ->
       function = tool_call["function"]
       tool_name = function["name"]
       args = Jason.decode!(function["arguments"])
 
-      result = execute_tool(tool_name, args, household_id)
+      result = execute_tool(tool_name, args, household_id, storage_location_id)
       Logger.info("Pantry.Sync: #{tool_name} -> #{result}")
 
       %{tool_call_id: tool_call["id"], content: result}
@@ -230,7 +257,7 @@ defmodule FeedMe.Pantry.Sync do
   end
 
   @doc false
-  def execute_tool("update_pantry_item", args, household_id) do
+  def execute_tool("update_pantry_item", args, household_id, _storage_location_id) do
     pantry_item_id = args["pantry_item_id"]
     quantity_to_add = args["quantity_to_add"]
 
@@ -252,7 +279,7 @@ defmodule FeedMe.Pantry.Sync do
   end
 
   @doc false
-  def execute_tool("create_pantry_item", args, household_id) do
+  def execute_tool("create_pantry_item", args, household_id, storage_location_id) do
     category_id =
       case args["category"] do
         nil ->
@@ -262,7 +289,7 @@ defmodule FeedMe.Pantry.Sync do
           nil
 
         category_name ->
-          case Pantry.find_or_create_category(household_id, category_name) do
+          case Pantry.find_or_create_category(storage_location_id, category_name) do
             {:ok, cat} -> cat.id
             _ -> nil
           end
@@ -273,7 +300,8 @@ defmodule FeedMe.Pantry.Sync do
       quantity: Decimal.new("#{args["quantity"] || 1}"),
       unit: args["unit"],
       category_id: category_id,
-      household_id: household_id
+      household_id: household_id,
+      storage_location_id: storage_location_id
     }
 
     case Pantry.create_item(attrs) do
@@ -286,7 +314,7 @@ defmodule FeedMe.Pantry.Sync do
   end
 
   @doc false
-  def execute_tool(unknown, _args, _household_id) do
+  def execute_tool(unknown, _args, _household_id, _storage_location_id) do
     "Error: Unknown tool #{unknown}"
   end
 
@@ -294,10 +322,10 @@ defmodule FeedMe.Pantry.Sync do
   # AI Messages & Tools
   # =============================================================================
 
-  defp build_messages(pantry_items, _categories, shopping_items) do
+  defp build_messages(pantry_items, _categories, shopping_items, location_name) do
     pantry_text =
       if pantry_items == [] do
-        "(pantry is empty)"
+        "(storage location is empty)"
       else
         pantry_items
         |> Enum.map(fn item ->
@@ -326,11 +354,11 @@ defmodule FeedMe.Pantry.Sync do
       |> Enum.join("\n")
 
     [
-      %{role: :system, content: system_prompt()},
+      %{role: :system, content: system_prompt(location_name)},
       %{
         role: :user,
         content: """
-        Current pantry:
+        Current items in "#{location_name}":
         #{pantry_text}
 
         Items checked off shopping list:
@@ -340,16 +368,16 @@ defmodule FeedMe.Pantry.Sync do
     ]
   end
 
-  defp system_prompt do
+  defp system_prompt(location_name) do
     """
-    You are a pantry inventory assistant. Items were checked off a shopping list, \
-    meaning the user acquired them. Update the pantry accordingly.
+    You are a pantry inventory assistant. You are updating the "#{location_name}" storage location. \
+    Items were checked off a shopping list, meaning the user acquired them. Update the inventory accordingly.
 
     Rules:
-    - Match shopping items to existing pantry items by name (fuzzy, case-insensitive). \
+    - Match shopping items to existing items by name (fuzzy, case-insensitive). \
     Prefer updating existing items over creating duplicates.
-    - Convert units when they differ (e.g., shopping "400g" → pantry tracks in "lbs" → add ~0.88).
-    - If no match exists, create a new pantry item.
+    - Convert units when they differ (e.g., shopping "400g" → inventory tracks in "lbs" → add ~0.88).
+    - If no match exists, create a new item.
     - If a shopping item has no unit or quantity, use reasonable defaults (qty: 1).
     - If a shopping item has a pre-linked pantry_item_id, use that item's ID for the update.
     - Process ALL items. Do not skip any.
@@ -363,17 +391,17 @@ defmodule FeedMe.Pantry.Sync do
         function: %{
           name: "update_pantry_item",
           description:
-            "Update quantity of an existing pantry item. Convert units to the pantry item's native unit before adding.",
+            "Update quantity of an existing item. Convert units to the item's native unit before adding.",
           parameters: %{
             type: "object",
             properties: %{
               pantry_item_id: %{
                 type: "string",
-                description: "The UUID of the existing pantry item to update"
+                description: "The UUID of the existing item to update"
               },
               quantity_to_add: %{
                 type: "number",
-                description: "The quantity to add, converted to the pantry item's unit"
+                description: "The quantity to add, converted to the item's unit"
               },
               notes: %{type: "string", description: "Optional notes about the update"}
             },
@@ -385,11 +413,11 @@ defmodule FeedMe.Pantry.Sync do
         type: "function",
         function: %{
           name: "create_pantry_item",
-          description: "Create a new pantry item for something not already in the pantry.",
+          description: "Create a new item for something not already in the storage location.",
           parameters: %{
             type: "object",
             properties: %{
-              name: %{type: "string", description: "Name of the pantry item"},
+              name: %{type: "string", description: "Name of the item"},
               quantity: %{type: "number", description: "Initial quantity"},
               unit: %{
                 type: "string",

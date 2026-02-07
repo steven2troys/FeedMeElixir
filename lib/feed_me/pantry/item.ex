@@ -21,6 +21,7 @@ defmodule FeedMe.Pantry.Item do
     field :barcode, :string
 
     belongs_to :household, FeedMe.Households.Household
+    belongs_to :storage_location, FeedMe.Pantry.StorageLocation
     belongs_to :category, FeedMe.Pantry.Category
     has_many :transactions, FeedMe.Pantry.Transaction, foreign_key: :pantry_item_id
 
@@ -41,13 +42,15 @@ defmodule FeedMe.Pantry.Item do
       :notes,
       :barcode,
       :household_id,
+      :storage_location_id,
       :category_id
     ])
-    |> validate_required([:name, :household_id])
+    |> validate_required([:name, :household_id, :storage_location_id])
     |> validate_length(:name, min: 1, max: 200)
     |> validate_number(:quantity, greater_than_or_equal_to: 0)
     |> validate_number(:restock_threshold, greater_than_or_equal_to: 0)
     |> foreign_key_constraint(:household_id)
+    |> foreign_key_constraint(:storage_location_id)
     |> foreign_key_constraint(:category_id)
   end
 

@@ -30,7 +30,7 @@ defmodule FeedMe.Shopping do
         not is_nil(s.id)
     )
     |> order_by([l], desc: l.is_main, asc: l.name)
-    |> preload(:shares)
+    |> preload([:shares, :auto_add_to_location])
     |> Repo.all()
   end
 
@@ -40,8 +40,15 @@ defmodule FeedMe.Shopping do
   def get_or_create_main_list(household_id) do
     case get_main_list(household_id) do
       nil ->
+        pantry_location = Pantry.get_pantry_location(household_id)
+
         {:ok, list} =
-          create_list(%{name: "Shopping List", is_main: true, household_id: household_id})
+          create_list(%{
+            name: "Shopping List",
+            is_main: true,
+            household_id: household_id,
+            auto_add_to_location_id: pantry_location && pantry_location.id
+          })
 
         list
 
@@ -234,9 +241,11 @@ defmodule FeedMe.Shopping do
     |> tap(fn result ->
       case result do
         {:ok, updated} ->
-          if item.shopping_list.add_to_pantry do
+          location_id = item.shopping_list.auto_add_to_location_id
+
+          if location_id do
             if was_unchecked do
-              Sync.queue_item(item.shopping_list.household_id, %{
+              Sync.queue_item(item.shopping_list.household_id, location_id, %{
                 shopping_item_id: item.id,
                 name: item.name,
                 quantity: item.quantity,
@@ -244,7 +253,7 @@ defmodule FeedMe.Shopping do
                 pantry_item_id: item.pantry_item_id
               })
             else
-              Sync.dequeue_item(item.shopping_list.household_id, item.id)
+              Sync.dequeue_item(item.shopping_list.household_id, location_id, item.id)
             end
           end
 

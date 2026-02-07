@@ -9,14 +9,37 @@ defmodule FeedMe.PantryFixtures do
   def unique_category_name, do: "Category #{System.unique_integer()}"
 
   @doc """
+  Returns or creates the default Pantry storage location for a household.
+  """
+  def storage_location_fixture(household) do
+    case Pantry.get_pantry_location(household.id) do
+      nil ->
+        {:ok, location} =
+          Pantry.create_storage_location(%{
+            name: "Pantry",
+            icon: "hero-archive-box",
+            household_id: household.id
+          })
+
+        location
+
+      location ->
+        location
+    end
+  end
+
+  @doc """
   Generate a category.
   """
   def category_fixture(household, attrs \\ %{}) do
+    location = storage_location_fixture(household)
+
     {:ok, category} =
       attrs
       |> Enum.into(%{
         name: unique_category_name(),
-        household_id: household.id
+        household_id: household.id,
+        storage_location_id: location.id
       })
       |> Pantry.create_category()
 
@@ -27,12 +50,15 @@ defmodule FeedMe.PantryFixtures do
   Generate an item.
   """
   def item_fixture(household, attrs \\ %{}) do
+    location = storage_location_fixture(household)
+
     {:ok, item} =
       attrs
       |> Enum.into(%{
         name: unique_item_name(),
         quantity: Decimal.new("10"),
-        household_id: household.id
+        household_id: household.id,
+        storage_location_id: location.id
       })
       |> Pantry.create_item()
 
