@@ -88,7 +88,7 @@ defmodule FeedMeWeb.InvitationLive.Accept do
             <p class="text-zinc-500 dark:text-zinc-400 mb-6">
               This invitation link is invalid or has been revoked.
             </p>
-            <.link navigate={~p"/households"}>
+            <.link navigate={~p"/"}>
               <.button>Go to Households</.button>
             </.link>
           <% :expired -> %>
@@ -99,7 +99,7 @@ defmodule FeedMeWeb.InvitationLive.Accept do
             <p class="text-zinc-500 dark:text-zinc-400 mb-6">
               This invitation has expired. Please ask the household admin to send a new one.
             </p>
-            <.link navigate={~p"/households"}>
+            <.link navigate={~p"/"}>
               <.button>Go to Households</.button>
             </.link>
           <% :already_accepted -> %>
@@ -110,7 +110,7 @@ defmodule FeedMeWeb.InvitationLive.Accept do
             <p class="text-zinc-500 dark:text-zinc-400 mb-6">
               This invitation has already been used.
             </p>
-            <.link navigate={~p"/households"}>
+            <.link navigate={~p"/"}>
               <.button>Go to Households</.button>
             </.link>
           <% :already_member -> %>
@@ -135,7 +135,7 @@ defmodule FeedMeWeb.InvitationLive.Accept do
             </p>
             <div class="flex gap-3 justify-center">
               <.button phx-click="accept" variant="primary">Accept Invitation</.button>
-              <.link navigate={~p"/households"} class="btn btn-ghost">
+              <.link navigate={~p"/"} class="btn btn-ghost">
                 Decline
               </.link>
             </div>

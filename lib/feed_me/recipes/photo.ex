@@ -23,7 +23,7 @@ defmodule FeedMe.Recipes.Photo do
     photo
     |> cast(attrs, [:url, :caption, :sort_order, :is_primary, :recipe_id])
     |> validate_required([:url, :recipe_id])
-    |> validate_format(:url, ~r/^https?:\/\//, message: "must be a valid URL")
+    |> validate_format(:url, ~r/^(https?:\/\/|\/uploads\/)/, message: "must be a valid URL")
     |> foreign_key_constraint(:recipe_id)
   end
 end

@@ -561,6 +561,7 @@ defmodule FeedMeWeb.CoreComponents do
       class="modal"
       phx-mounted={@show && show_modal(@id)}
       phx-remove={hide_modal(@id)}
+      data-cancel={@on_cancel}
     >
       <div class="modal-box relative">
         <button

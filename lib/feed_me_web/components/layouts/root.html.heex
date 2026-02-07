@@ -97,11 +97,6 @@
             onerror="this.style.display='none'"
           /> FeedMe
         </.link>
-        <%= if @current_scope && @current_scope.user do %>
-          <.link href={~p"/households"} class="btn btn-ghost btn-sm text-base-content">
-            My Households
-          </.link>
-        <% end %>
       </div>
       <div class="flex-none flex items-center gap-2">
         <!-- Theme Toggle -->
@@ -125,68 +120,59 @@
           </svg>
         </label>
         
-<!-- Desktop user menu -->
-        <ul class="hidden md:flex menu menu-horizontal px-1 gap-1">
-          <%= if @current_scope && @current_scope.user do %>
-            <li class="flex items-center px-3 text-sm text-base-content/70">
-              {@current_scope.user.name || @current_scope.user.email}
-            </li>
-            <li>
-              <.link href={~p"/users/settings"} class="hover:bg-base-200">Settings</.link>
-            </li>
-            <li>
-              <.link
-                href={~p"/users/log-out"}
-                method="delete"
-                class="hover:bg-error/10 hover:text-error"
-              >
-                Log out
-              </.link>
-            </li>
-          <% else %>
-            <li>
-              <.link href={~p"/users/register"} class="hover:bg-base-200">Register</.link>
-            </li>
-            <li>
-              <.link href={~p"/users/log-in"} class="btn btn-primary btn-sm">Log in</.link>
-            </li>
-          <% end %>
-        </ul>
-        
-<!-- Mobile user menu -->
-        <div class="md:hidden">
-          <%= if @current_scope && @current_scope.user do %>
-            <div class="dropdown dropdown-end">
-              <div tabindex="0" role="button" class="btn btn-ghost btn-circle btn-sm">
-                <.icon name="hero-user-circle" class="size-6" />
-              </div>
-              <ul
-                tabindex="0"
-                class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-lg border border-base-300 mt-2"
-              >
-                <li class="menu-title text-xs">
-                  {@current_scope.user.name || @current_scope.user.email}
-                </li>
+<%= if @current_scope && @current_scope.user do %>
+          <div class="dropdown dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-1">
+              <.icon name="hero-user-circle" class="size-5" />
+              <span class="hidden md:inline text-sm">
+                {@current_scope.user.name || @current_scope.user.email}
+              </span>
+              <.icon name="hero-chevron-down" class="size-3 hidden md:inline" />
+            </div>
+            <ul
+              tabindex="0"
+              class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-lg border border-base-300 mt-2"
+            >
+              <li class="menu-title text-xs md:hidden">
+                {@current_scope.user.name || @current_scope.user.email}
+              </li>
+              <%= if assigns[:nav_household_id] do %>
                 <li>
-                  <.link href={~p"/users/settings"}>
+                  <.link
+                    navigate={~p"/households/#{assigns[:nav_household_id]}/members/#{@current_scope.user.id}/edit"}
+                    onclick="document.activeElement.blur()"
+                  >
+                    <.icon name="hero-user" class="size-4" /> My Profile
+                  </.link>
+                </li>
+              <% end %>
+              <%= if assigns[:nav_is_admin] do %>
+                <li>
+                  <.link
+                    navigate={~p"/households/#{assigns[:nav_household_id]}/settings"}
+                    onclick="document.activeElement.blur()"
+                  >
                     <.icon name="hero-cog-6-tooth" class="size-4" /> Settings
                   </.link>
                 </li>
-                <li>
-                  <.link
-                    href={~p"/users/log-out"}
-                    method="delete"
-                    class="text-error"
-                  >
-                    <.icon name="hero-arrow-right-on-rectangle" class="size-4" /> Log out
-                  </.link>
-                </li>
-              </ul>
-            </div>
-          <% else %>
+              <% end %>
+              <li>
+                <.link
+                  href={~p"/users/log-out"}
+                  method="delete"
+                  class="text-error"
+                >
+                  <.icon name="hero-arrow-right-on-rectangle" class="size-4" /> Log out
+                </.link>
+              </li>
+            </ul>
+          </div>
+        <% else %>
+          <div class="flex items-center gap-1">
+            <.link href={~p"/users/register"} class="btn btn-ghost btn-sm hidden md:inline-flex">Register</.link>
             <.link href={~p"/users/log-in"} class="btn btn-primary btn-sm">Log in</.link>
-          <% end %>
-        </div>
+          </div>
+        <% end %>
       </div>
     </nav>
     {@inner_content}

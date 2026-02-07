@@ -20,7 +20,7 @@ defmodule FeedMeWeb.HouseholdHooks do
           {:halt,
            socket
            |> put_flash(:error, "Household not found or you don't have access")
-           |> push_navigate(to: ~p"/households")}
+           |> push_navigate(to: ~p"/")}
 
         %{household: household, role: role} ->
           {:cont,

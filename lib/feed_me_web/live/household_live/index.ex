@@ -51,6 +51,42 @@ defmodule FeedMeWeb.HouseholdLive.Index do
 
   @impl true
   def render(assigns) do
+    if assigns.households == [] and assigns.live_action == :new do
+      render_onboarding(assigns)
+    else
+      render_list(assigns)
+    end
+  end
+
+  defp render_onboarding(assigns) do
+    ~H"""
+    <div class="mx-auto max-w-lg mt-12">
+      <div class="text-center mb-8">
+        <div class="text-6xl mb-4">&#127968;</div>
+        <h1 class="text-3xl font-bold">Welcome to FeedMe!</h1>
+        <p class="text-base-content/60 mt-2">
+          Create your first household to start managing your pantry, shopping lists, and recipes.
+        </p>
+      </div>
+
+      <div class="card bg-base-100 border border-base-200">
+        <div class="card-body">
+          <.live_component
+            module={FeedMeWeb.HouseholdLive.FormComponent}
+            id={:new}
+            title="Create Your Household"
+            action={@live_action}
+            household={@household}
+            current_user={@current_scope.user}
+            patch={~p"/households"}
+          />
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp render_list(assigns) do
     ~H"""
     <div class="mx-auto max-w-4xl">
       <.header>

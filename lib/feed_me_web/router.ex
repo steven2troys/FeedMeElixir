@@ -17,6 +17,10 @@ defmodule FeedMeWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :nav_context do
+    plug FeedMeWeb.Plugs.NavContext
+  end
+
   scope "/", FeedMeWeb do
     pipe_through :browser
 
@@ -63,7 +67,7 @@ defmodule FeedMeWeb.Router do
   end
 
   scope "/", FeedMeWeb do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through [:browser, :require_authenticated_user, :nav_context]
 
     get "/users/settings", UserSettingsController, :edit
     put "/users/settings", UserSettingsController, :update
@@ -106,6 +110,9 @@ defmodule FeedMeWeb.Router do
       live "/households/:household_id/chat/:id/share", ChatLive.Show, :share
 
       # Settings routes
+      live "/households/:household_id/settings", SettingsLive.Index, :index
+      live "/households/:household_id/settings/households", SettingsLive.Households, :index
+      live "/households/:household_id/settings/households/new", SettingsLive.Households, :new
       live "/households/:household_id/settings/api-key", SettingsLive.ApiKey, :edit
     end
 

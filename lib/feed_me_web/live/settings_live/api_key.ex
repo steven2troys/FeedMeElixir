@@ -136,21 +136,6 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
     end
   end
 
-  def handle_event("save_timezone", %{"timezone" => timezone}, socket) do
-    household = socket.assigns.household
-
-    case Households.update_household(household, %{timezone: timezone}) do
-      {:ok, updated_household} ->
-        {:noreply,
-         socket
-         |> assign(:household, updated_household)
-         |> put_flash(:info, "Timezone updated to #{timezone}")}
-
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to update timezone")}
-    end
-  end
-
   def handle_event("refresh_models", _params, socket) do
     socket = assign(socket, :loading_models, true)
     models = load_models(socket.assigns.household.id)
@@ -435,133 +420,9 @@ defmodule FeedMeWeb.SettingsLive.ApiKey do
         <% end %>
       </div>
 
-      <div class="card bg-base-100 border border-base-200">
-        <div class="card-body">
-          <h3 class="card-title">Household Timezone</h3>
-          <p class="text-sm text-base-content/70">
-            Set your household's timezone. This is used for expiration date calculations
-            when adding items to your pantry.
-          </p>
-          <form phx-submit="save_timezone" class="mt-4">
-            <div class="form-control">
-              <select name="timezone" class="select select-bordered w-full">
-                <optgroup label="Common US Timezones">
-                  <%= for tz <- common_us_timezones() do %>
-                    <option value={tz} selected={@household.timezone == tz}>{tz}</option>
-                  <% end %>
-                </optgroup>
-                <%= for {region, zones} <- grouped_timezones() do %>
-                  <optgroup label={region}>
-                    <%= for tz <- zones do %>
-                      <option value={tz} selected={@household.timezone == tz}>{tz}</option>
-                    <% end %>
-                  </optgroup>
-                <% end %>
-              </select>
-            </div>
-            <div class="mt-4">
-              <button type="submit" class="btn btn-primary">Save Timezone</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <.back navigate={~p"/households/#{@household.id}"}>Back to household</.back>
+      <.back navigate={~p"/households/#{@household.id}/settings"}>Back to settings</.back>
     </div>
     """
-  end
-
-  defp common_us_timezones do
-    [
-      "America/New_York",
-      "America/Chicago",
-      "America/Denver",
-      "America/Los_Angeles",
-      "America/Anchorage",
-      "Pacific/Honolulu"
-    ]
-  end
-
-  defp grouped_timezones do
-    common = MapSet.new(common_us_timezones())
-
-    all_timezones()
-    |> Enum.reject(&MapSet.member?(common, &1))
-    |> Enum.group_by(fn tz -> tz |> String.split("/") |> hd() end)
-    |> Enum.sort_by(fn {region, _} -> region end)
-  end
-
-  defp all_timezones do
-    [
-      # Africa
-      "Africa/Cairo",
-      "Africa/Casablanca",
-      "Africa/Johannesburg",
-      "Africa/Lagos",
-      "Africa/Nairobi",
-      # Americas
-      "America/Anchorage",
-      "America/Argentina/Buenos_Aires",
-      "America/Bogota",
-      "America/Caracas",
-      "America/Chicago",
-      "America/Denver",
-      "America/Edmonton",
-      "America/Halifax",
-      "America/Lima",
-      "America/Los_Angeles",
-      "America/Mexico_City",
-      "America/New_York",
-      "America/Phoenix",
-      "America/Santiago",
-      "America/Sao_Paulo",
-      "America/Toronto",
-      "America/Vancouver",
-      # Asia
-      "Asia/Bangkok",
-      "Asia/Dubai",
-      "Asia/Ho_Chi_Minh",
-      "Asia/Hong_Kong",
-      "Asia/Jakarta",
-      "Asia/Jerusalem",
-      "Asia/Kolkata",
-      "Asia/Manila",
-      "Asia/Seoul",
-      "Asia/Shanghai",
-      "Asia/Singapore",
-      "Asia/Taipei",
-      "Asia/Tokyo",
-      # Australia
-      "Australia/Adelaide",
-      "Australia/Brisbane",
-      "Australia/Darwin",
-      "Australia/Melbourne",
-      "Australia/Perth",
-      "Australia/Sydney",
-      # Europe
-      "Europe/Amsterdam",
-      "Europe/Athens",
-      "Europe/Berlin",
-      "Europe/Brussels",
-      "Europe/Dublin",
-      "Europe/Helsinki",
-      "Europe/Istanbul",
-      "Europe/Lisbon",
-      "Europe/London",
-      "Europe/Madrid",
-      "Europe/Moscow",
-      "Europe/Paris",
-      "Europe/Rome",
-      "Europe/Stockholm",
-      "Europe/Vienna",
-      "Europe/Warsaw",
-      "Europe/Zurich",
-      # Pacific
-      "Pacific/Auckland",
-      "Pacific/Fiji",
-      "Pacific/Guam",
-      "Pacific/Honolulu"
-    ]
   end
 
   defp get_model_display_name(model_id, models) do

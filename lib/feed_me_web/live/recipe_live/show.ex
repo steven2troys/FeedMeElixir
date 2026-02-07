@@ -1,8 +1,11 @@
 defmodule FeedMeWeb.RecipeLive.Show do
   use FeedMeWeb, :live_view
 
+  alias FeedMe.AI
+  alias FeedMe.AI.{ApiKey, ImageGen}
   alias FeedMe.Recipes
   alias FeedMe.Recipes.Recipe
+  alias FeedMe.Uploads
 
   @impl true
   def mount(%{"id" => recipe_id}, _session, socket) do
@@ -15,7 +18,10 @@ defmodule FeedMeWeb.RecipeLive.Show do
        socket
        |> assign(:active_tab, :recipes)
        |> assign(:recipe, recipe)
-       |> assign(:page_title, recipe.title)}
+       |> assign(:page_title, recipe.title)
+       |> assign(:generating_image, false)
+       |> assign(:image_gen_task_ref, nil)
+       |> assign(:show_photo_actions, false)}
     else
       {:ok,
        socket
@@ -98,6 +104,179 @@ defmodule FeedMeWeb.RecipeLive.Show do
     end
   end
 
+  def handle_event("toggle_photo_actions", _params, socket) do
+    {:noreply, assign(socket, :show_photo_actions, !socket.assigns.show_photo_actions)}
+  end
+
+  def handle_event("generate_image", _params, socket) do
+    if socket.assigns.generating_image do
+      {:noreply, socket}
+    else
+      household_id = socket.assigns.household.id
+
+      case AI.get_api_key(household_id, "openrouter") do
+        nil ->
+          {:noreply, put_flash(socket, :error, "No API key configured. Add one in Settings.")}
+
+        api_key_record ->
+          decrypted_key = ApiKey.decrypt_key(api_key_record)
+          recipe = socket.assigns.recipe
+
+          task =
+            Task.Supervisor.async_nolink(FeedMe.Pantry.SyncTaskSupervisor, fn ->
+              ImageGen.generate_recipe_photo(decrypted_key, recipe)
+            end)
+
+          {:noreply, assign(socket, generating_image: true, image_gen_task_ref: task.ref)}
+      end
+    end
+  end
+
+  def handle_event("delete_photo", %{"id" => photo_id}, socket) do
+    household_id = socket.assigns.household.id
+
+    case Recipes.get_photo(photo_id, household_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Photo not found")}
+
+      photo ->
+        {:ok, _} = Recipes.delete_photo(photo)
+        recipe = Recipes.get_recipe(socket.assigns.recipe.id, household_id)
+        # Reset generating_image as safety valve in case state was stuck
+        {:noreply, assign(socket, recipe: recipe, generating_image: false, image_gen_task_ref: nil)}
+    end
+  end
+
+  def handle_event("regenerate_image", %{"id" => photo_id}, socket) do
+    household_id = socket.assigns.household.id
+
+    # Delete old photo first
+    case Recipes.get_photo(photo_id, household_id) do
+      nil -> :ok
+      photo -> Recipes.delete_photo(photo)
+    end
+
+    recipe = Recipes.get_recipe(socket.assigns.recipe.id, household_id)
+    socket = assign(socket, recipe: recipe, generating_image: false, image_gen_task_ref: nil)
+
+    # Trigger new generation
+    case AI.get_api_key(household_id, "openrouter") do
+      nil ->
+        {:noreply, put_flash(socket, :error, "No API key configured. Add one in Settings.")}
+
+      api_key_record ->
+        decrypted_key = ApiKey.decrypt_key(api_key_record)
+
+        task =
+          Task.Supervisor.async_nolink(FeedMe.Pantry.SyncTaskSupervisor, fn ->
+            ImageGen.generate_recipe_photo(decrypted_key, recipe)
+          end)
+
+        {:noreply, assign(socket, generating_image: true, image_gen_task_ref: task.ref)}
+    end
+  end
+
+  def handle_event("set_primary_photo", %{"id" => photo_id}, socket) do
+    household_id = socket.assigns.household.id
+
+    case Recipes.get_photo(photo_id, household_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Photo not found")}
+
+      photo ->
+        {:ok, _} = Recipes.set_primary_photo(photo)
+        recipe = Recipes.get_recipe(socket.assigns.recipe.id, household_id)
+        {:noreply, assign(socket, recipe: recipe)}
+    end
+  end
+
+  @impl true
+  def handle_info({:image_selected, base64_data}, socket) do
+    recipe = socket.assigns.recipe
+
+    case Uploads.save_recipe_photo(base64_data, recipe.id) do
+      {:ok, url_path} ->
+        sort_order = Recipes.next_photo_sort_order(recipe.id)
+        is_primary = recipe.photos == []
+
+        {:ok, _photo} =
+          Recipes.create_photo(%{
+            url: url_path,
+            recipe_id: recipe.id,
+            sort_order: sort_order,
+            is_primary: is_primary
+          })
+
+        recipe = Recipes.get_recipe(recipe.id, socket.assigns.household.id)
+        {:noreply, socket |> assign(recipe: recipe) |> put_flash(:info, "Photo added!")}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to save photo: #{inspect(reason)}")}
+    end
+  end
+
+  def handle_info({:camera_error, error}, socket) do
+    {:noreply, put_flash(socket, :error, "Camera error: #{error}")}
+  end
+
+  # Async task success
+  def handle_info({ref, {:ok, base64_data}}, socket) when ref == socket.assigns.image_gen_task_ref do
+    Process.demonitor(ref, [:flush])
+    recipe = socket.assigns.recipe
+
+    case Uploads.save_recipe_photo(base64_data, recipe.id) do
+      {:ok, url_path} ->
+        sort_order = Recipes.next_photo_sort_order(recipe.id)
+        is_primary = recipe.photos == []
+
+        {:ok, _photo} =
+          Recipes.create_photo(%{
+            url: url_path,
+            caption: "AI generated",
+            recipe_id: recipe.id,
+            sort_order: sort_order,
+            is_primary: is_primary
+          })
+
+        recipe = Recipes.get_recipe(recipe.id, socket.assigns.household.id)
+
+        {:noreply,
+         socket
+         |> assign(recipe: recipe, generating_image: false, image_gen_task_ref: nil)
+         |> put_flash(:info, "AI photo generated!")}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(generating_image: false, image_gen_task_ref: nil)
+         |> put_flash(:error, "Failed to save generated photo: #{inspect(reason)}")}
+    end
+  end
+
+  # Async task error
+  def handle_info({ref, {:error, reason}}, socket) when ref == socket.assigns.image_gen_task_ref do
+    Process.demonitor(ref, [:flush])
+
+    {:noreply,
+     socket
+     |> assign(generating_image: false, image_gen_task_ref: nil)
+     |> put_flash(:error, "Image generation failed: #{inspect(reason)}")}
+  end
+
+  # Task process crashed
+  def handle_info({:DOWN, ref, :process, _pid, reason}, socket)
+      when ref == socket.assigns.image_gen_task_ref do
+    {:noreply,
+     socket
+     |> assign(generating_image: false, image_gen_task_ref: nil)
+     |> put_flash(:error, "Image generation crashed: #{inspect(reason)}")}
+  end
+
+  # Ignore unrelated DOWN messages
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -143,6 +322,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
         </:actions>
       </.header>
 
+      <%!-- Photo carousel --%>
       <%= if @recipe.photos != [] do %>
         <div class="mt-6 carousel w-full rounded-lg">
           <%= for {photo, idx} <- Enum.with_index(@recipe.photos) do %>
@@ -152,6 +332,89 @@ defmodule FeedMeWeb.RecipeLive.Show do
                 class="w-full max-h-96 object-cover"
                 alt={photo.caption || @recipe.title}
               />
+              <%= if photo.is_primary do %>
+                <span class="absolute top-2 left-2 badge badge-primary badge-sm">Primary</span>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <%!-- Photo action buttons --%>
+      <div class="mt-4 flex flex-wrap items-center gap-2">
+        <.live_component
+          module={FeedMeWeb.ChatLive.CameraComponent}
+          id="recipe-camera"
+        />
+
+        <button
+          phx-click="generate_image"
+          class="btn btn-ghost btn-sm"
+          disabled={@generating_image}
+        >
+          <%= if @generating_image do %>
+            <span class="loading loading-spinner loading-xs"></span>
+            Generating...
+          <% else %>
+            <.icon name="hero-sparkles" class="size-4" />
+            AI Photo
+          <% end %>
+        </button>
+
+        <%= if @recipe.photos != [] do %>
+          <button phx-click="toggle_photo_actions" class="btn btn-ghost btn-sm">
+            <.icon name="hero-ellipsis-horizontal" class="size-4" />
+            Manage
+          </button>
+        <% end %>
+      </div>
+
+      <%!-- Photo management panel --%>
+      <%= if @show_photo_actions && @recipe.photos != [] do %>
+        <div class="mt-2 p-3 bg-base-200 rounded-lg space-y-2">
+          <%= for photo <- @recipe.photos do %>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <img src={photo.url} class="w-12 h-12 rounded object-cover" alt="" />
+                <span class="text-sm">
+                  {photo.caption || "Photo"}
+                  <%= if photo.is_primary do %>
+                    <span class="badge badge-primary badge-xs ml-1">Primary</span>
+                  <% end %>
+                </span>
+              </div>
+              <div class="flex gap-1">
+                <%= if photo.caption == "AI generated" do %>
+                  <button
+                    phx-click="regenerate_image"
+                    phx-value-id={photo.id}
+                    class="btn btn-ghost btn-xs"
+                    disabled={@generating_image}
+                    title="Regenerate AI photo"
+                  >
+                    <.icon name="hero-arrow-path" class="size-4" />
+                  </button>
+                <% end %>
+                <%= unless photo.is_primary do %>
+                  <button
+                    phx-click="set_primary_photo"
+                    phx-value-id={photo.id}
+                    class="btn btn-ghost btn-xs"
+                    title="Set as primary"
+                  >
+                    <.icon name="hero-star" class="size-4" />
+                  </button>
+                <% end %>
+                <button
+                  phx-click="delete_photo"
+                  phx-value-id={photo.id}
+                  data-confirm="Delete this photo?"
+                  class="btn btn-ghost btn-xs text-error"
+                  title="Delete photo"
+                >
+                  <.icon name="hero-trash" class="size-4" />
+                </button>
+              </div>
             </div>
           <% end %>
         </div>

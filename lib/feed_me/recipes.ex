@@ -202,9 +202,49 @@ defmodule FeedMe.Recipes do
   end
 
   @doc """
-  Deletes a photo.
+  Gets a photo by ID, scoped to a household via the recipe join.
+  """
+  def get_photo(id, household_id) do
+    Photo
+    |> join(:inner, [p], r in Recipe, on: p.recipe_id == r.id)
+    |> where([p, r], p.id == ^id and r.household_id == ^household_id)
+    |> Repo.one()
+  end
+
+  @doc """
+  Sets a photo as the primary photo for its recipe (unsets all others).
+  """
+  def set_primary_photo(%Photo{} = photo) do
+    Repo.transaction(fn ->
+      # Unset all photos for this recipe
+      from(p in Photo, where: p.recipe_id == ^photo.recipe_id and p.is_primary == true)
+      |> Repo.update_all(set: [is_primary: false])
+
+      # Set the chosen photo as primary
+      photo
+      |> Ecto.Changeset.change(is_primary: true)
+      |> Repo.update!()
+    end)
+  end
+
+  @doc """
+  Returns the next sort_order value for a recipe's photos.
+  """
+  def next_photo_sort_order(recipe_id) do
+    max =
+      Photo
+      |> where([p], p.recipe_id == ^recipe_id)
+      |> select([p], max(p.sort_order))
+      |> Repo.one()
+
+    (max || -1) + 1
+  end
+
+  @doc """
+  Deletes a photo and its associated file (if local upload).
   """
   def delete_photo(%Photo{} = photo) do
+    FeedMe.Uploads.delete_file(photo.url)
     Repo.delete(photo)
   end
 

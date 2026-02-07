@@ -4,12 +4,6 @@
     <aside class="hidden md:flex w-64 bg-base-200 border-r border-base-300 flex-col flex-shrink-0">
       <!-- Household Header -->
       <div class="p-4 border-b border-base-300">
-        <.link
-          navigate={~p"/households"}
-          class="text-sm text-base-content/60 hover:text-primary flex items-center gap-1 mb-2"
-        >
-          <.icon name="hero-arrow-left" class="size-3" /> All Households
-        </.link>
         <h2 class="font-semibold text-lg truncate">{@household.name}</h2>
       </div>
       
@@ -90,7 +84,7 @@
         </.link>
 
         <.link
-          navigate={~p"/households/#{@household.id}/settings/api-key"}
+          navigate={~p"/households/#{@household.id}/settings"}
           class={[
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
             assigns[:active_tab] == :settings && "bg-primary text-primary-content",
@@ -174,7 +168,7 @@
               </.link>
             </li>
             <li>
-              <.link navigate={~p"/households/#{@household.id}/settings/api-key"}>
+              <.link navigate={~p"/households/#{@household.id}/settings"}>
                 <.icon name="hero-cog-6-tooth" class="size-4" /> Settings
               </.link>
             </li>

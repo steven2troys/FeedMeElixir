@@ -36,3 +36,6 @@ npm-debug.log
 /assets/node_modules/
 
 .env
+
+# User-uploaded files
+/priv/static/uploads/

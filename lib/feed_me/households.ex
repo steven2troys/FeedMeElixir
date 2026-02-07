@@ -24,6 +24,34 @@ defmodule FeedMe.Households do
   end
 
   @doc """
+  Returns the single household if the user belongs to exactly one, nil otherwise.
+  Uses limit(2) for efficiency — avoids counting all memberships.
+  """
+  def get_single_household_for_user(%User{id: user_id}) do
+    results =
+      Membership
+      |> where([m], m.user_id == ^user_id)
+      |> join(:inner, [m], h in Household, on: m.household_id == h.id)
+      |> select([m, h], h)
+      |> limit(2)
+      |> Repo.all()
+
+    case results do
+      [single] -> single
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Returns the number of households for a user.
+  """
+  def count_households_for_user(%User{id: user_id}) do
+    Membership
+    |> where([m], m.user_id == ^user_id)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc """
   Gets a single household.
   """
   def get_household(id) do

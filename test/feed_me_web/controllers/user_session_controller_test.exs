@@ -89,7 +89,6 @@ defmodule FeedMeWeb.UserSessionControllerTest do
       conn = get(conn, ~p"/households")
       response = html_response(conn, 200)
       assert response =~ user.email
-      assert response =~ ~p"/users/settings"
       assert response =~ ~p"/users/log-out"
     end
 
@@ -164,7 +163,6 @@ defmodule FeedMeWeb.UserSessionControllerTest do
       conn = get(conn, ~p"/households")
       response = html_response(conn, 200)
       assert response =~ user.email
-      assert response =~ ~p"/users/settings"
       assert response =~ ~p"/users/log-out"
     end
 
@@ -188,7 +186,6 @@ defmodule FeedMeWeb.UserSessionControllerTest do
       conn = get(conn, ~p"/households")
       response = html_response(conn, 200)
       assert response =~ user.email
-      assert response =~ ~p"/users/settings"
       assert response =~ ~p"/users/log-out"
     end
 

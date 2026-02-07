@@ -46,6 +46,14 @@ window.addEventListener("modal:close", (e) => {
   e.target.close()
 })
 
+// Intercept native dialog cancel (Esc) to trigger LiveView-aware cancel
+document.addEventListener("cancel", (e) => {
+  if (e.target.tagName === "DIALOG" && e.target.dataset.cancel) {
+    e.preventDefault()
+    window.liveSocket.execJS(e.target, e.target.dataset.cancel)
+  }
+}, true)
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 
