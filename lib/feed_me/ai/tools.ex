@@ -565,7 +565,6 @@ defmodule FeedMe.AI.Tools do
   defp maybe_add_opt(opts, _key, nil), do: opts
   defp maybe_add_opt(opts, key, value), do: Keyword.put(opts, key, value)
 
-
   defp execute_add_recipe(args, %{household_id: household_id, user: user}) do
     # Build recipe attributes
     recipe_attrs = %{

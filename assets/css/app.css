@@ -111,3 +111,8 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* Safe area for mobile devices with home indicator / notch */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

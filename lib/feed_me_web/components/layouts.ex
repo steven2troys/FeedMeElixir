@@ -116,6 +116,30 @@ defmodule FeedMeWeb.Layouts do
   end
 
   @doc """
+  Renders a mobile bottom tab bar link.
+  """
+  attr :href, :string, required: true
+  attr :icon, :string, required: true
+  attr :label, :string, required: true
+  attr :active, :boolean, default: false
+
+  def mobile_tab_link(assigns) do
+    ~H"""
+    <.link
+      navigate={@href}
+      class={[
+        "flex flex-col items-center justify-center gap-0.5 min-w-[3rem] py-1 text-xs transition-colors",
+        @active && "text-primary font-semibold",
+        not @active && "text-base-content/60"
+      ]}
+    >
+      <.icon name={@icon} class="size-6" />
+      <span>{@label}</span>
+    </.link>
+    """
+  end
+
+  @doc """
   Provides dark vs light theme toggle based on themes defined in app.css.
 
   See <head> in root.html.heex which applies the theme before page load.

@@ -192,9 +192,11 @@ defmodule FeedMeWeb.RecipeLive.Show do
           <h3 class="font-semibold text-lg mb-4">Instructions</h3>
           <div class="prose prose-sm max-w-none">
             <%= if @recipe.instructions do %>
-              <%= for {step, idx} <- @recipe.instructions |> String.split("\n") |> Enum.with_index(1) do %>
-                <p><strong>{idx}.</strong> {step}</p>
-              <% end %>
+              <ol class="list-decimal pl-5 space-y-2">
+                <%= for step <- @recipe.instructions |> String.split("\n") |> Enum.reject(&(&1 == "")) do %>
+                  <li>{Regex.replace(~r/^\d+[\.\)]\s*/, step, "")}</li>
+                <% end %>
+              </ol>
             <% else %>
               <p class="text-base-content/50">No instructions added yet.</p>
             <% end %>

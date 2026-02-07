@@ -11,7 +11,8 @@ defmodule FeedMeWeb.ChatLive.Index do
     # household and role are set by HouseholdHooks
     household = socket.assigns.household
 
-    conversations = AI.list_conversations(household.id)
+    user = socket.assigns.current_scope.user
+    conversations = AI.list_conversations(household.id, user.id)
     api_key = AI.get_api_key(household.id)
 
     {:ok,
@@ -53,32 +54,36 @@ defmodule FeedMeWeb.ChatLive.Index do
     end
   end
 
-  def handle_event("archive_conversation", %{"id" => id}, socket) do
-    case AI.get_conversation(id, socket.assigns.household.id) do
-      nil ->
-        {:noreply, socket}
-
-      conversation ->
-        {:ok, _} = AI.archive_conversation(conversation)
-        conversations = AI.list_conversations(socket.assigns.household.id)
-        {:noreply, assign(socket, :conversations, conversations)}
-    end
-  end
-
   def handle_event("delete_conversation", %{"id" => id}, socket) do
+    user = socket.assigns.current_scope.user
+
     case AI.get_conversation(id, socket.assigns.household.id) do
       nil ->
         {:noreply, socket}
 
-      conversation ->
+      conversation when conversation.started_by_id == user.id ->
         {:ok, _} = AI.delete_conversation(conversation)
-        conversations = AI.list_conversations(socket.assigns.household.id)
+        conversations = AI.list_conversations(socket.assigns.household.id, user.id)
 
         {:noreply,
          socket
          |> assign(:conversations, conversations)
          |> put_flash(:info, "Conversation deleted")}
+
+      _conversation ->
+        {:noreply, put_flash(socket, :error, "Only the owner can delete this conversation")}
     end
+  end
+
+  def handle_event("leave_conversation", %{"id" => id}, socket) do
+    user = socket.assigns.current_scope.user
+    AI.unshare_conversation(id, user.id)
+    conversations = AI.list_conversations(socket.assigns.household.id, user.id)
+
+    {:noreply,
+     socket
+     |> assign(:conversations, conversations)
+     |> put_flash(:info, "Left conversation")}
   end
 
   @impl true
@@ -133,28 +138,33 @@ defmodule FeedMeWeb.ChatLive.Index do
           <% else %>
             <div class="space-y-2">
               <%= for conversation <- @conversations do %>
+                <% is_owner = conversation.started_by_id == @current_scope.user.id %>
+                <% is_shared = not is_owner %>
+                <% has_shares = is_owner and conversation.shares != [] %>
                 <div class="card bg-base-100 border border-base-200 hover:border-primary transition-colors">
                   <div class="card-body p-4 flex-row items-center justify-between">
                     <.link
                       navigate={~p"/households/#{@household.id}/chat/#{conversation.id}"}
                       class="flex-1"
                     >
-                      <h3 class="font-medium">
-                        {conversation.title || "New conversation"}
-                      </h3>
+                      <div class="flex items-center gap-2">
+                        <h3 class="font-medium">
+                          {conversation.title || "New conversation"}
+                        </h3>
+                        <%= if is_shared do %>
+                          <span class="badge badge-sm badge-outline badge-info">Shared with you</span>
+                        <% end %>
+                        <%= if has_shares do %>
+                          <span class="badge badge-sm badge-outline badge-secondary">
+                            <.icon name="hero-share" class="size-3 mr-1" />Shared
+                          </span>
+                        <% end %>
+                      </div>
                       <p class="text-sm text-base-content/60">
                         {Calendar.strftime(conversation.updated_at, "%b %d, %Y at %I:%M %p")}
                       </p>
                     </.link>
-                    <div class="flex gap-1">
-                      <button
-                        phx-click="archive_conversation"
-                        phx-value-id={conversation.id}
-                        class="btn btn-ghost btn-sm"
-                        title="Archive"
-                      >
-                        <.icon name="hero-archive-box" class="size-4" />
-                      </button>
+                    <%= if is_owner do %>
                       <button
                         phx-click="delete_conversation"
                         phx-value-id={conversation.id}
@@ -164,7 +174,17 @@ defmodule FeedMeWeb.ChatLive.Index do
                       >
                         <.icon name="hero-trash" class="size-4" />
                       </button>
-                    </div>
+                    <% else %>
+                      <button
+                        phx-click="leave_conversation"
+                        phx-value-id={conversation.id}
+                        data-confirm="Leave this conversation? You'll need to be re-shared to see it again."
+                        class="btn btn-ghost btn-sm"
+                        title="Leave"
+                      >
+                        <.icon name="hero-arrow-right-on-rectangle" class="size-4" />
+                      </button>
+                    <% end %>
                   </div>
                 </div>
               <% end %>

@@ -103,6 +103,7 @@ defmodule FeedMeWeb.Router do
       # AI Chat routes
       live "/households/:household_id/chat", ChatLive.Index, :index
       live "/households/:household_id/chat/:id", ChatLive.Show, :show
+      live "/households/:household_id/chat/:id/share", ChatLive.Show, :share
 
       # Settings routes
       live "/households/:household_id/settings/api-key", SettingsLive.ApiKey, :edit

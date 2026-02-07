@@ -551,6 +551,7 @@ defmodule FeedMeWeb.CoreComponents do
   attr :id, :string, required: true
   attr :show, :boolean, default: false
   attr :on_cancel, JS, default: %JS{}
+  attr :close_button, :boolean, default: true
   slot :inner_block, required: true
 
   def modal(assigns) do
@@ -563,6 +564,7 @@ defmodule FeedMeWeb.CoreComponents do
     >
       <div class="modal-box relative">
         <button
+          :if={@close_button}
           type="button"
           class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
           aria-label={gettext("close")}

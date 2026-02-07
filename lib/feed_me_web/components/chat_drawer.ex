@@ -24,7 +24,7 @@ defmodule FeedMeWeb.ChatDrawer do
     <button
       :if={not @drawer_open}
       phx-click="drawer_toggle"
-      class="fixed bottom-6 right-6 z-40 btn btn-primary btn-circle shadow-lg size-14"
+      class="hidden md:flex fixed bottom-6 right-6 z-40 btn btn-primary btn-circle shadow-lg size-14"
       aria-label="Open AI assistant"
     >
       <.icon name="hero-chat-bubble-left-ellipsis" class="size-6" />
@@ -34,7 +34,7 @@ defmodule FeedMeWeb.ChatDrawer do
     <div
       :if={@drawer_open}
       phx-click="drawer_toggle"
-      class="fixed inset-0 z-30 bg-black/20 lg:hidden"
+      class="fixed inset-0 z-40 bg-black/20 md:hidden"
     />
 
     <%!-- Drawer panel --%>
@@ -42,7 +42,7 @@ defmodule FeedMeWeb.ChatDrawer do
       id="chat-drawer"
       phx-hook="ChatDrawer"
       class={[
-        "fixed top-[65px] right-0 bottom-0 w-96 max-w-[calc(100vw-3rem)] z-40",
+        "fixed top-[65px] right-0 bottom-0 w-full md:w-96 md:max-w-[calc(100vw-3rem)] z-50",
         "bg-base-100 border-l border-base-300 shadow-xl",
         "flex flex-col",
         "transition-transform duration-300 ease-in-out",
@@ -141,7 +141,7 @@ defmodule FeedMeWeb.ChatDrawer do
       <% end %>
 
       <%!-- Input area --%>
-      <div class="px-3 py-3 border-t border-base-300 bg-base-100">
+      <div class="px-3 py-3 pb-16 md:pb-3 border-t border-base-300 bg-base-100">
         <form phx-submit="drawer_send" class="flex gap-2 items-center">
           <.live_component
             module={VoiceButtonComponent}

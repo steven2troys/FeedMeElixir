@@ -206,7 +206,11 @@ defmodule FeedMeWeb.PantryLive.Index do
                           item.always_in_stock && "badge-info",
                           not item.always_in_stock && "badge-ghost opacity-50 hover:opacity-100"
                         ]}
-                        title={if item.always_in_stock, do: "Click to disable keep-in-stock", else: "Click to keep in stock"}
+                        title={
+                          if item.always_in_stock,
+                            do: "Click to disable keep-in-stock",
+                            else: "Click to keep in stock"
+                        }
                       >
                         {if item.always_in_stock, do: "Keep in stock", else: "Keep in stock"}
                       </button>
@@ -222,7 +226,8 @@ defmodule FeedMeWeb.PantryLive.Index do
                       <.icon name="hero-minus" class="size-4" />
                     </button>
                     <span class="font-mono min-w-[4rem] text-center">
-                      {if item.quantity, do: Decimal.to_string(item.quantity), else: "—"}{if item.unit, do: " #{item.unit}"}
+                      {if item.quantity, do: Decimal.to_string(item.quantity), else: "—"}{if item.unit,
+                        do: " #{item.unit}"}
                     </span>
                     <button
                       phx-click="quick_adjust"

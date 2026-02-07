@@ -2,7 +2,7 @@ defmodule FeedMe.AITest do
   use FeedMe.DataCase
 
   alias FeedMe.AI
-  alias FeedMe.AI.{ApiKey, Conversation, Message}
+  alias FeedMe.AI.ApiKey
   alias FeedMe.AccountsFixtures
   alias FeedMe.HouseholdsFixtures
 
@@ -92,28 +92,29 @@ defmodule FeedMe.AITest do
       assert conversation.title == "Test Chat"
     end
 
-    test "list_conversations/1 returns conversations for household", %{
+    test "list_conversations/2 returns conversations for user in household", %{
       household: household,
       user: user
     } do
-      {:ok, conv1} = AI.create_conversation(household.id, user, title: "First")
+      {:ok, _conv1} = AI.create_conversation(household.id, user, title: "First")
       {:ok, _conv2} = AI.create_conversation(household.id, user, title: "Second")
 
-      conversations = AI.list_conversations(household.id)
+      conversations = AI.list_conversations(household.id, user.id)
       assert length(conversations) == 2
     end
 
-    test "list_conversations/1 excludes archived conversations", %{
+    test "list_conversations/2 only returns conversations for the given user", %{
       household: household,
       user: user
     } do
-      {:ok, conv1} = AI.create_conversation(household.id, user, title: "Active")
-      {:ok, conv2} = AI.create_conversation(household.id, user, title: "Archived")
-      AI.archive_conversation(conv2)
+      {:ok, _conv1} = AI.create_conversation(household.id, user, title: "Mine")
 
-      conversations = AI.list_conversations(household.id)
+      other_user = AccountsFixtures.user_fixture()
+      {:ok, _conv2} = AI.create_conversation(household.id, other_user, title: "Theirs")
+
+      conversations = AI.list_conversations(household.id, user.id)
       assert length(conversations) == 1
-      assert hd(conversations).id == conv1.id
+      assert hd(conversations).title == "Mine"
     end
 
     test "get_conversation/2 returns conversation with messages", %{
@@ -135,14 +136,6 @@ defmodule FeedMe.AITest do
       other_household = HouseholdsFixtures.household_fixture(%{}, other_user)
 
       assert AI.get_conversation(conversation.id, other_household.id) == nil
-    end
-
-    test "archive_conversation/1 sets status to archived", %{household: household, user: user} do
-      {:ok, conversation} = AI.create_conversation(household.id, user)
-      assert conversation.status == :active
-
-      {:ok, archived} = AI.archive_conversation(conversation)
-      assert archived.status == :archived
     end
 
     test "delete_conversation/1 removes conversation and messages", %{
@@ -197,6 +190,127 @@ defmodule FeedMe.AITest do
       messages = AI.list_messages(conversation.id)
       assert length(messages) == 2
       assert hd(messages).content == "First"
+    end
+  end
+
+  describe "conversation sharing" do
+    setup do
+      user = AccountsFixtures.user_fixture()
+      household = HouseholdsFixtures.household_fixture(%{}, user)
+      {:ok, conversation} = AI.create_conversation(household.id, user, title: "Shared Chat")
+      other_user = AccountsFixtures.user_fixture()
+
+      # Add other_user to household so they're a valid member
+      %FeedMe.Households.Membership{}
+      |> FeedMe.Households.Membership.changeset(%{
+        user_id: other_user.id,
+        household_id: household.id,
+        role: :member
+      })
+      |> FeedMe.Repo.insert!()
+
+      %{user: user, other_user: other_user, household: household, conversation: conversation}
+    end
+
+    test "share_conversation/2 shares with specified users", %{
+      conversation: conversation,
+      other_user: other_user
+    } do
+      :ok = AI.share_conversation(conversation.id, [other_user.id])
+
+      shares = AI.list_conversation_shares(conversation.id)
+      assert length(shares) == 1
+      assert hd(shares).user_id == other_user.id
+    end
+
+    test "share_conversation/2 acts as a set operation", %{
+      conversation: conversation,
+      other_user: other_user
+    } do
+      third_user = AccountsFixtures.user_fixture()
+
+      # Share with both
+      :ok = AI.share_conversation(conversation.id, [other_user.id, third_user.id])
+      assert length(AI.list_conversation_shares(conversation.id)) == 2
+
+      # Now only share with third_user - other_user should be removed
+      :ok = AI.share_conversation(conversation.id, [third_user.id])
+      shares = AI.list_conversation_shares(conversation.id)
+      assert length(shares) == 1
+      assert hd(shares).user_id == third_user.id
+    end
+
+    test "share_conversation/2 with empty list removes all shares", %{
+      conversation: conversation,
+      other_user: other_user
+    } do
+      :ok = AI.share_conversation(conversation.id, [other_user.id])
+      assert length(AI.list_conversation_shares(conversation.id)) == 1
+
+      :ok = AI.share_conversation(conversation.id, [])
+      assert AI.list_conversation_shares(conversation.id) == []
+    end
+
+    test "unshare_conversation/2 removes a single share", %{
+      conversation: conversation,
+      other_user: other_user
+    } do
+      :ok = AI.share_conversation(conversation.id, [other_user.id])
+      :ok = AI.unshare_conversation(conversation.id, other_user.id)
+
+      assert AI.list_conversation_shares(conversation.id) == []
+    end
+
+    test "conversation_accessible?/2 returns true for creator", %{
+      conversation: conversation,
+      user: user
+    } do
+      assert AI.conversation_accessible?(conversation.id, user.id) == true
+    end
+
+    test "conversation_accessible?/2 returns true for shared user", %{
+      conversation: conversation,
+      other_user: other_user
+    } do
+      :ok = AI.share_conversation(conversation.id, [other_user.id])
+      assert AI.conversation_accessible?(conversation.id, other_user.id) == true
+    end
+
+    test "conversation_accessible?/2 returns false for non-shared user", %{
+      conversation: conversation,
+      other_user: other_user
+    } do
+      assert AI.conversation_accessible?(conversation.id, other_user.id) == false
+    end
+
+    test "list_conversations/2 includes shared conversations", %{
+      household: household,
+      conversation: conversation,
+      other_user: other_user
+    } do
+      :ok = AI.share_conversation(conversation.id, [other_user.id])
+
+      conversations = AI.list_conversations(household.id, other_user.id)
+      assert length(conversations) == 1
+      assert hd(conversations).id == conversation.id
+    end
+
+    test "list_conversations/2 excludes unshared conversations", %{
+      household: household,
+      other_user: other_user
+    } do
+      conversations = AI.list_conversations(household.id, other_user.id)
+      assert conversations == []
+    end
+
+    test "list_conversation_shares/1 preloads users", %{
+      conversation: conversation,
+      other_user: other_user
+    } do
+      :ok = AI.share_conversation(conversation.id, [other_user.id])
+
+      shares = AI.list_conversation_shares(conversation.id)
+      assert hd(shares).user.id == other_user.id
     end
   end
 

@@ -10,11 +10,13 @@ defmodule FeedMe.AI.Conversation do
   schema "ai_conversations" do
     field :title, :string
     field :model, :string
-    field :status, Ecto.Enum, values: [:active, :archived], default: :active
+    field :status, Ecto.Enum, values: [:active], default: :active
 
     belongs_to :household, FeedMe.Households.Household
     belongs_to :started_by, FeedMe.Accounts.User
     has_many :messages, FeedMe.AI.Message, foreign_key: :conversation_id
+    has_many :shares, FeedMe.AI.ConversationShare
+    has_many :shared_with_users, through: [:shares, :user]
 
     timestamps(type: :utc_datetime)
   end
@@ -22,7 +24,7 @@ defmodule FeedMe.AI.Conversation do
   @doc false
   def changeset(conversation, attrs) do
     conversation
-    |> cast(attrs, [:title, :model, :status, :household_id, :started_by_id])
+    |> cast(attrs, [:title, :model, :household_id, :started_by_id])
     |> validate_required([:household_id])
     |> foreign_key_constraint(:household_id)
   end

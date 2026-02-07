@@ -4,7 +4,7 @@ defmodule FeedMe.AI do
   """
 
   import Ecto.Query, warn: false
-  alias FeedMe.AI.{ApiKey, Conversation, Message, OpenRouter, Tools}
+  alias FeedMe.AI.{ApiKey, Conversation, ConversationShare, Message, OpenRouter, Tools}
   alias FeedMe.Repo
 
   # =============================================================================
@@ -89,16 +89,21 @@ defmodule FeedMe.AI do
   # =============================================================================
 
   @doc """
-  Lists conversations for a household.
+  Lists conversations for a user within a household.
   """
-  def list_conversations(household_id, opts \\ []) do
+  def list_conversations(household_id, user_id, opts \\ []) do
     limit = Keyword.get(opts, :limit, 20)
 
     Conversation
     |> where([c], c.household_id == ^household_id)
-    |> where([c], c.status == :active)
+    |> join(:left, [c], s in ConversationShare,
+      on: s.conversation_id == c.id and s.user_id == ^user_id
+    )
+    |> where([c, s], c.started_by_id == ^user_id or not is_nil(s.id))
+    |> distinct([c, _s], c.id)
     |> order_by([c], desc: c.updated_at)
     |> limit(^limit)
+    |> preload(:shares)
     |> Repo.all()
   end
 
@@ -160,17 +165,80 @@ defmodule FeedMe.AI do
   end
 
   @doc """
-  Archives a conversation.
-  """
-  def archive_conversation(%Conversation{} = conversation) do
-    update_conversation(conversation, %{status: :archived})
-  end
-
-  @doc """
   Deletes a conversation and all its messages.
   """
   def delete_conversation(%Conversation{} = conversation) do
     Repo.delete(conversation)
+  end
+
+  # =============================================================================
+  # Conversation Sharing
+  # =============================================================================
+
+  @doc """
+  Sets the share list for a conversation. Adds shares for the given user IDs
+  and removes any existing shares not in the list.
+  """
+  def share_conversation(conversation_id, user_ids) do
+    # Remove shares not in the new list
+    ConversationShare
+    |> where([s], s.conversation_id == ^conversation_id and s.user_id not in ^user_ids)
+    |> Repo.delete_all()
+
+    # Insert new shares (skip existing via on_conflict)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    entries =
+      Enum.map(user_ids, fn user_id ->
+        %{
+          id: Ecto.UUID.generate(),
+          conversation_id: conversation_id,
+          user_id: user_id,
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    Repo.insert_all(ConversationShare, entries,
+      on_conflict: :nothing,
+      conflict_target: [:conversation_id, :user_id]
+    )
+
+    :ok
+  end
+
+  @doc """
+  Removes a single share (user leaving a shared conversation).
+  """
+  def unshare_conversation(conversation_id, user_id) do
+    ConversationShare
+    |> where([s], s.conversation_id == ^conversation_id and s.user_id == ^user_id)
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  @doc """
+  Lists shares for a conversation with preloaded users.
+  """
+  def list_conversation_shares(conversation_id) do
+    ConversationShare
+    |> where([s], s.conversation_id == ^conversation_id)
+    |> preload(:user)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns true if the user is the creator or has a share on the conversation.
+  """
+  def conversation_accessible?(conversation_id, user_id) do
+    Conversation
+    |> where([c], c.id == ^conversation_id)
+    |> join(:left, [c], s in ConversationShare,
+      on: s.conversation_id == c.id and s.user_id == ^user_id
+    )
+    |> where([c, s], c.started_by_id == ^user_id or not is_nil(s.id))
+    |> Repo.exists?()
   end
 
   # =============================================================================
