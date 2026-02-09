@@ -111,6 +111,21 @@ defmodule FeedMeWeb.HouseholdLive.Members do
     end
   end
 
+  def handle_event("set_nutrition_display", %{"level" => level}, socket) do
+    profile = socket.assigns.editing_profile
+
+    case Profiles.update_taste_profile(profile, %{nutrition_display: level}) do
+      {:ok, updated_profile} ->
+        {:noreply,
+         socket
+         |> assign(:editing_profile, updated_profile)
+         |> assign(:profile_form, to_form(Profiles.change_taste_profile(updated_profile)))}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :profile_form, to_form(changeset))}
+    end
+  end
+
   def handle_event("add_item", %{"field" => field, "value" => value}, socket) do
     field_atom = String.to_existing_atom(field)
     profile = socket.assigns.editing_profile
@@ -295,6 +310,50 @@ defmodule FeedMeWeb.HouseholdLive.Members do
     <!-- Taste Profile Section -->
           <div class="space-y-6">
             <h3 class="font-semibold">Taste Profile</h3>
+
+            <div class="space-y-2">
+              <div>
+                <h4 class="font-medium text-sm">Nutrition Display</h4>
+                <p class="text-xs text-base-content/60">
+                  Show nutritional info on pantry items, recipes, and shopping lists
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  phx-click="set_nutrition_display"
+                  phx-value-level="none"
+                  class={[
+                    "btn btn-sm",
+                    @editing_profile.nutrition_display == "none" && "btn-primary",
+                    @editing_profile.nutrition_display != "none" && "btn-ghost"
+                  ]}
+                >
+                  Off
+                </button>
+                <button
+                  phx-click="set_nutrition_display"
+                  phx-value-level="basic"
+                  class={[
+                    "btn btn-sm",
+                    @editing_profile.nutrition_display == "basic" && "btn-primary",
+                    @editing_profile.nutrition_display != "basic" && "btn-ghost"
+                  ]}
+                >
+                  Basic
+                </button>
+                <button
+                  phx-click="set_nutrition_display"
+                  phx-value-level="detailed"
+                  class={[
+                    "btn btn-sm",
+                    @editing_profile.nutrition_display == "detailed" && "btn-primary",
+                    @editing_profile.nutrition_display != "detailed" && "btn-ghost"
+                  ]}
+                >
+                  Detailed
+                </button>
+              </div>
+            </div>
 
             <.tag_section
               title="Dietary Restrictions"

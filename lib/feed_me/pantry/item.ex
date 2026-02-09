@@ -25,6 +25,8 @@ defmodule FeedMe.Pantry.Item do
     belongs_to :category, FeedMe.Pantry.Category
     has_many :transactions, FeedMe.Pantry.Transaction, foreign_key: :pantry_item_id
 
+    embeds_one :nutrition, FeedMe.Nutrition.Info, on_replace: :update
+
     timestamps(type: :utc_datetime)
   end
 
@@ -52,6 +54,16 @@ defmodule FeedMe.Pantry.Item do
     |> foreign_key_constraint(:household_id)
     |> foreign_key_constraint(:storage_location_id)
     |> foreign_key_constraint(:category_id)
+    |> cast_embed(:nutrition)
+  end
+
+  @doc """
+  Changeset for updating just the nutrition data.
+  """
+  def nutrition_changeset(item, attrs) do
+    item
+    |> cast(attrs, [])
+    |> cast_embed(:nutrition)
   end
 
   @doc """

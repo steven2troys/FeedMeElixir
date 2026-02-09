@@ -306,6 +306,11 @@ defmodule FeedMe.Pantry.Sync do
 
     case Pantry.create_item(attrs) do
       {:ok, item} ->
+        if args["nutrition"] do
+          nutrition = FeedMe.AI.Tools.build_nutrition_attrs(args["nutrition"])
+          Pantry.update_item_nutrition(item, nutrition)
+        end
+
         "Created pantry item: #{item.name} (#{item.quantity} #{item.unit || "units"})"
 
       {:error, changeset} ->
@@ -381,6 +386,7 @@ defmodule FeedMe.Pantry.Sync do
     - If a shopping item has no unit or quantity, use reasonable defaults (qty: 1).
     - If a shopping item has a pre-linked pantry_item_id, use that item's ID for the update.
     - Process ALL items. Do not skip any.
+    - Always include estimated nutritional information when creating new items.
     """
   end
 
@@ -426,6 +432,20 @@ defmodule FeedMe.Pantry.Sync do
               category: %{
                 type: "string",
                 description: "Category name (e.g., Dairy, Produce, Meat & Seafood)"
+              },
+              nutrition: %{
+                type: "object",
+                description: "Estimated nutritional info per standard serving",
+                properties: %{
+                  calories: %{type: "number"},
+                  protein_g: %{type: "number"},
+                  carbs_g: %{type: "number"},
+                  fat_g: %{type: "number"},
+                  fiber_g: %{type: "number"},
+                  sugar_g: %{type: "number"},
+                  sodium_mg: %{type: "number"},
+                  serving_size: %{type: "string", description: "e.g. '100g', '1 cup'"}
+                }
               }
             },
             required: ["name", "quantity"]

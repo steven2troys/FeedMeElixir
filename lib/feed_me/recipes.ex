@@ -145,6 +145,15 @@ defmodule FeedMe.Recipes do
   end
 
   @doc """
+  Updates just the nutrition data on an ingredient.
+  """
+  def update_ingredient_nutrition(%Ingredient{} = ingredient, nutrition_attrs) do
+    ingredient
+    |> Ingredient.nutrition_changeset(%{nutrition: nutrition_attrs})
+    |> Repo.update()
+  end
+
+  @doc """
   Updates an ingredient.
   """
   def update_ingredient(%Ingredient{} = ingredient, attrs) do
@@ -180,6 +189,7 @@ defmodule FeedMe.Recipes do
           sort_order: index,
           recipe_id: recipe_id,
           pantry_item_id: attrs[:pantry_item_id],
+          nutrition: attrs[:nutrition],
           inserted_at: now,
           updated_at: now
         }

@@ -19,7 +19,8 @@ defmodule FeedMe.AI.Tools do
       get_pantry_categories(),
       suggest_recipe(),
       search_web(),
-      add_recipe()
+      add_recipe(),
+      estimate_nutrition()
     ]
   end
 
@@ -37,6 +38,7 @@ defmodule FeedMe.AI.Tools do
       "suggest_recipe" -> execute_suggest_recipe(args, context)
       "search_web" -> execute_search_web(args, context)
       "add_recipe" -> execute_add_recipe(args, context)
+      "estimate_nutrition" -> execute_estimate_nutrition(args, context)
       _ -> {:error, "Unknown tool: #{tool_name}"}
     end
   end
@@ -63,6 +65,23 @@ defmodule FeedMe.AI.Tools do
               type: "integer",
               description:
                 "Estimated shelf life in days from today. Always provide this. Examples: bananas=5, bread=7, milk=10, eggs=21, chicken=2, canned goods=730, fresh herbs=7, cheese=30."
+            },
+            nutrition: %{
+              type: "object",
+              description: "Estimated nutritional information per serving",
+              properties: %{
+                calories: %{type: "number", description: "Calories per serving"},
+                protein_g: %{type: "number", description: "Protein in grams"},
+                carbs_g: %{type: "number", description: "Carbohydrates in grams"},
+                fat_g: %{type: "number", description: "Fat in grams"},
+                fiber_g: %{type: "number", description: "Fiber in grams"},
+                sugar_g: %{type: "number", description: "Sugar in grams"},
+                sodium_mg: %{type: "number", description: "Sodium in milligrams"},
+                serving_size: %{
+                  type: "string",
+                  description: "Serving size description (e.g., '100g', '1 cup', '1 medium')"
+                }
+              }
             }
           },
           required: ["name"]
@@ -233,7 +252,21 @@ defmodule FeedMe.AI.Tools do
                     type: "string",
                     description: "Optional notes (e.g., 'diced', 'room temperature')"
                   },
-                  optional: %{type: "boolean", description: "Whether this ingredient is optional"}
+                  optional: %{type: "boolean", description: "Whether this ingredient is optional"},
+                  nutrition: %{
+                    type: "object",
+                    description: "Estimated nutritional info for this ingredient amount",
+                    properties: %{
+                      calories: %{type: "number", description: "Calories"},
+                      protein_g: %{type: "number", description: "Protein in grams"},
+                      carbs_g: %{type: "number", description: "Carbohydrates in grams"},
+                      fat_g: %{type: "number", description: "Fat in grams"},
+                      fiber_g: %{type: "number", description: "Fiber in grams"},
+                      sugar_g: %{type: "number", description: "Sugar in grams"},
+                      sodium_mg: %{type: "number", description: "Sodium in milligrams"},
+                      serving_size: %{type: "string", description: "Serving size"}
+                    }
+                  }
                 },
                 required: ["name"]
               }
@@ -258,6 +291,46 @@ defmodule FeedMe.AI.Tools do
             }
           },
           required: ["title", "instructions", "ingredients"]
+        }
+      }
+    }
+  end
+
+  defp estimate_nutrition do
+    %{
+      type: "function",
+      function: %{
+        name: "estimate_nutrition",
+        description:
+          "Estimate and save nutritional information for an existing pantry item or recipe ingredient",
+        parameters: %{
+          type: "object",
+          properties: %{
+            item_id: %{
+              type: "string",
+              description: "ID of the pantry item to estimate nutrition for"
+            },
+            ingredient_id: %{
+              type: "string",
+              description: "ID of the recipe ingredient to estimate nutrition for"
+            },
+            nutrition: %{
+              type: "object",
+              description: "The estimated nutritional information",
+              properties: %{
+                calories: %{type: "number", description: "Calories per serving"},
+                protein_g: %{type: "number", description: "Protein in grams"},
+                carbs_g: %{type: "number", description: "Carbohydrates in grams"},
+                fat_g: %{type: "number", description: "Fat in grams"},
+                fiber_g: %{type: "number", description: "Fiber in grams"},
+                sugar_g: %{type: "number", description: "Sugar in grams"},
+                sodium_mg: %{type: "number", description: "Sodium in milligrams"},
+                serving_size: %{type: "string", description: "Serving size description"}
+              },
+              required: ["calories", "protein_g", "carbs_g", "fat_g"]
+            }
+          },
+          required: ["nutrition"]
         }
       }
     }
@@ -306,6 +379,12 @@ defmodule FeedMe.AI.Tools do
 
     case Pantry.create_item(attrs, user) do
       {:ok, item} ->
+        # Add nutrition if provided
+        if args["nutrition"] do
+          nutrition = build_nutrition_attrs(args["nutrition"])
+          Pantry.update_item_nutrition(item, nutrition)
+        end
+
         result =
           "Added #{item.name} to pantry" <>
             if(item.quantity, do: " (#{item.quantity} #{item.unit || "units"})", else: "")
@@ -550,7 +629,59 @@ defmodule FeedMe.AI.Tools do
     end
   end
 
+  defp execute_estimate_nutrition(args, %{household_id: household_id}) do
+    nutrition = build_nutrition_attrs(args["nutrition"])
+
+    cond do
+      args["item_id"] ->
+        case Pantry.get_item(args["item_id"], household_id) do
+          nil ->
+            {:error, "Pantry item not found"}
+
+          item ->
+            case Pantry.update_item_nutrition(item, nutrition) do
+              {:ok, _} -> {:ok, "Nutrition estimated for #{item.name}"}
+              {:error, cs} -> {:error, "Failed: #{inspect(cs.errors)}"}
+            end
+        end
+
+      args["ingredient_id"] ->
+        case Recipes.get_ingredient(args["ingredient_id"]) do
+          nil ->
+            {:error, "Ingredient not found"}
+
+          ingredient ->
+            case Recipes.update_ingredient_nutrition(ingredient, nutrition) do
+              {:ok, _} -> {:ok, "Nutrition estimated for #{ingredient.name}"}
+              {:error, cs} -> {:error, "Failed: #{inspect(cs.errors)}"}
+            end
+        end
+
+      true ->
+        {:error, "Either item_id or ingredient_id is required"}
+    end
+  end
+
   # Helpers
+
+  @doc false
+  def build_nutrition_attrs(nil), do: %{}
+
+  def build_nutrition_attrs(nutrition) when is_map(nutrition) do
+    %{
+      calories: nutrition["calories"] && Decimal.new("#{nutrition["calories"]}"),
+      protein_g: nutrition["protein_g"] && Decimal.new("#{nutrition["protein_g"]}"),
+      carbs_g: nutrition["carbs_g"] && Decimal.new("#{nutrition["carbs_g"]}"),
+      fat_g: nutrition["fat_g"] && Decimal.new("#{nutrition["fat_g"]}"),
+      fiber_g: nutrition["fiber_g"] && Decimal.new("#{nutrition["fiber_g"]}"),
+      sugar_g: nutrition["sugar_g"] && Decimal.new("#{nutrition["sugar_g"]}"),
+      sodium_mg: nutrition["sodium_mg"] && Decimal.new("#{nutrition["sodium_mg"]}"),
+      serving_size: nutrition["serving_size"],
+      source: "ai_estimated"
+    }
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Map.new()
+  end
 
   defp today_for_household(household_id) do
     household = FeedMe.Households.get_household(household_id)
@@ -589,13 +720,19 @@ defmodule FeedMe.AI.Tools do
         if ingredients != [] do
           ingredient_list =
             Enum.map(ingredients, fn ing ->
-              %{
+              base = %{
                 name: ing["name"],
                 quantity: ing["quantity"] && Decimal.new("#{ing["quantity"]}"),
                 unit: ing["unit"],
                 notes: ing["notes"],
                 optional: ing["optional"] || false
               }
+
+              if ing["nutrition"] do
+                Map.put(base, :nutrition, build_nutrition_attrs(ing["nutrition"]))
+              else
+                base
+              end
             end)
 
           Recipes.bulk_create_ingredients(recipe.id, ingredient_list)

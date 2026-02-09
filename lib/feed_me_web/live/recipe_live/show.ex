@@ -1,8 +1,11 @@
 defmodule FeedMeWeb.RecipeLive.Show do
   use FeedMeWeb, :live_view
 
+  import FeedMeWeb.NutritionComponent
+
   alias FeedMe.AI
   alias FeedMe.AI.{ApiKey, ImageGen}
+  alias FeedMe.Nutrition
   alias FeedMe.Recipes
   alias FeedMe.Recipes.Recipe
   alias FeedMe.Uploads
@@ -426,6 +429,14 @@ defmodule FeedMeWeb.RecipeLive.Show do
         </div>
       <% end %>
 
+      <div class="mt-6">
+        <.nutrition_summary
+          nutrition={Nutrition.recipe_per_serving(@recipe)}
+          display={@nutrition_display}
+          servings={@recipe.servings}
+        />
+      </div>
+
       <div class="mt-8 grid gap-8 lg:grid-cols-3">
         <div class="lg:col-span-1">
           <h3 class="font-semibold text-lg mb-4">Ingredients</h3>
@@ -446,6 +457,11 @@ defmodule FeedMeWeb.RecipeLive.Show do
                     <span class="text-xs">(optional)</span>
                   <% end %>
                 </span>
+                <%= if @nutrition_display != "none" && ingredient.nutrition && ingredient.nutrition.calories do %>
+                  <span class="text-xs text-base-content/50 ml-1">
+                    {Decimal.round(ingredient.nutrition.calories, 0)} cal
+                  </span>
+                <% end %>
               </li>
             <% end %>
           </ul>

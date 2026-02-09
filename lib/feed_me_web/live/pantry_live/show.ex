@@ -1,6 +1,8 @@
 defmodule FeedMeWeb.PantryLive.Show do
   use FeedMeWeb, :live_view
 
+  import FeedMeWeb.NutritionComponent
+
   alias FeedMe.Pantry
   alias FeedMe.Pantry.Item
 
@@ -189,6 +191,10 @@ defmodule FeedMeWeb.PantryLive.Show do
           </div>
         </div>
       <% end %>
+
+      <div class="mt-6">
+        <.nutrition_card nutrition={@item.nutrition} display={@nutrition_display} title="Nutrition" />
+      </div>
 
       <div class="mt-6">
         <h3 class="font-semibold mb-4">Recent Activity</h3>

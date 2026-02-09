@@ -73,6 +73,18 @@ defmodule FeedMe.Profiles do
   end
 
   @doc """
+  Gets the nutrition display preference for a user in a household.
+
+  Returns "none" if no profile exists.
+  """
+  def get_nutrition_display(user_id, household_id) do
+    case get_taste_profile(user_id, household_id) do
+      nil -> "none"
+      profile -> profile.nutrition_display || "none"
+    end
+  end
+
+  @doc """
   Gets a taste profile for a household (first one found, or creates one).
   Useful for AI context where we need any household profile.
   """

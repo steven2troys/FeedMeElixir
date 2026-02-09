@@ -490,6 +490,16 @@ defmodule FeedMe.Pantry do
   end
 
   @doc """
+  Updates just the nutrition data on a pantry item.
+  """
+  def update_item_nutrition(%Item{} = item, nutrition_attrs) do
+    item
+    |> Item.nutrition_changeset(%{nutrition: nutrition_attrs})
+    |> Repo.update()
+    |> broadcast_change(:item_updated)
+  end
+
+  @doc """
   Updates an item.
   """
   def update_item(%Item{} = item, attrs) do

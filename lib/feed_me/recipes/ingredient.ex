@@ -18,6 +18,8 @@ defmodule FeedMe.Recipes.Ingredient do
     belongs_to :recipe, FeedMe.Recipes.Recipe
     belongs_to :pantry_item, FeedMe.Pantry.Item
 
+    embeds_one :nutrition, FeedMe.Nutrition.Info, on_replace: :update
+
     timestamps(type: :utc_datetime)
   end
 
@@ -39,5 +41,15 @@ defmodule FeedMe.Recipes.Ingredient do
     |> validate_number(:quantity, greater_than: 0)
     |> foreign_key_constraint(:recipe_id)
     |> foreign_key_constraint(:pantry_item_id)
+    |> cast_embed(:nutrition)
+  end
+
+  @doc """
+  Changeset for updating just the nutrition data.
+  """
+  def nutrition_changeset(ingredient, attrs) do
+    ingredient
+    |> cast(attrs, [])
+    |> cast_embed(:nutrition)
   end
 end

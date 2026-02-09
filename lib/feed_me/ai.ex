@@ -500,6 +500,7 @@ defmodule FeedMe.AI do
     - Use the available tools to actually perform actions, don't just describe what you would do
     - When adding items, confirm what you've done
     - When adding items to the pantry, always provide shelf_life_days to estimate how long the item lasts (e.g., bananas=5, bread=7, milk=10, eggs=21, fresh meat=2, canned goods=730). The system will calculate the exact expiration date automatically.
+    - When adding pantry items or recipes, always include estimated nutritional information (calories, protein, carbs, fat at minimum).
     - Consider dietary restrictions and allergies when suggesting recipes
     - If you're unsure about something, ask for clarification
 
@@ -682,6 +683,7 @@ defmodule FeedMe.AI do
     - Use the available tools to actually perform actions, don't just describe what you would do
     - When adding items, confirm what you've done
     - When adding items to the pantry, always provide shelf_life_days to estimate how long the item lasts (e.g., bananas=5, bread=7, milk=10, eggs=21, fresh meat=2, canned goods=730). The system will calculate the exact expiration date automatically.
+    - When adding pantry items or recipes, always include estimated nutritional information (calories, protein, carbs, fat at minimum).
     - Consider dietary restrictions and allergies when suggesting recipes
     - If a request is complex and needs a full conversation, suggest the user open AI Chat from the sidebar
     """

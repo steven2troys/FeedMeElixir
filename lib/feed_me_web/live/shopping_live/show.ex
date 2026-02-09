@@ -1,6 +1,8 @@
 defmodule FeedMeWeb.ShoppingLive.Show do
   use FeedMeWeb, :live_view
 
+  import FeedMeWeb.NutritionComponent
+
   alias FeedMe.Households
   alias FeedMe.Pantry
   alias FeedMe.Shopping
@@ -388,6 +390,12 @@ defmodule FeedMeWeb.ShoppingLive.Show do
                 <% end %>
                 <%= if item.category do %>
                   <span class="badge badge-sm badge-ghost ml-2">{item.category.name}</span>
+                <% end %>
+                <%= if item.pantry_item do %>
+                  <.nutrition_badge
+                    nutrition={item.pantry_item.nutrition}
+                    display={@nutrition_display}
+                  />
                 <% end %>
               </div>
               <button

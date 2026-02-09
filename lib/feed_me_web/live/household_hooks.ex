@@ -8,6 +8,7 @@ defmodule FeedMeWeb.HouseholdHooks do
   import Phoenix.Component
 
   alias FeedMe.Households
+  alias FeedMe.Profiles
 
   def on_mount(:default, params, _session, socket) do
     household_id = params["household_id"] || params["id"]
@@ -23,10 +24,13 @@ defmodule FeedMeWeb.HouseholdHooks do
            |> push_navigate(to: ~p"/")}
 
         %{household: household, role: role} ->
+          nutrition_display = Profiles.get_nutrition_display(user.id, household.id)
+
           {:cont,
            socket
            |> assign(:household, household)
            |> assign(:role, role)
+           |> assign(:nutrition_display, nutrition_display)
            |> FeedMeWeb.ChatDrawerHooks.attach_chat_drawer()}
       end
     else

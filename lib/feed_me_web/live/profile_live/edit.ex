@@ -43,6 +43,19 @@ defmodule FeedMeWeb.ProfileLive.Edit do
     end
   end
 
+  def handle_event("set_nutrition_display", %{"level" => level}, socket) do
+    case Profiles.update_taste_profile(socket.assigns.profile, %{nutrition_display: level}) do
+      {:ok, profile} ->
+        {:noreply,
+         socket
+         |> assign(:profile, profile)
+         |> assign(:form, to_form(Profiles.change_taste_profile(profile)))}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to update nutrition display")}
+    end
+  end
+
   def handle_event("add_item", %{"field" => field, "value" => value}, socket) do
     field_atom = String.to_existing_atom(field)
     current_values = Map.get(socket.assigns.profile, field_atom) || []
@@ -94,6 +107,50 @@ defmodule FeedMeWeb.ProfileLive.Edit do
       </.header>
 
       <div class="mt-8 space-y-8">
+        <div class="space-y-3">
+          <div>
+            <h3 class="font-semibold">Nutrition Display</h3>
+            <p class="text-sm text-base-content/70">
+              Show nutritional info on pantry items, recipes, and shopping lists
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <button
+              phx-click="set_nutrition_display"
+              phx-value-level="none"
+              class={[
+                "btn btn-sm",
+                @profile.nutrition_display == "none" && "btn-primary",
+                @profile.nutrition_display != "none" && "btn-ghost"
+              ]}
+            >
+              Off
+            </button>
+            <button
+              phx-click="set_nutrition_display"
+              phx-value-level="basic"
+              class={[
+                "btn btn-sm",
+                @profile.nutrition_display == "basic" && "btn-primary",
+                @profile.nutrition_display != "basic" && "btn-ghost"
+              ]}
+            >
+              Basic <span class="text-xs font-normal">(Cal, Protein, Carbs, Fat)</span>
+            </button>
+            <button
+              phx-click="set_nutrition_display"
+              phx-value-level="detailed"
+              class={[
+                "btn btn-sm",
+                @profile.nutrition_display == "detailed" && "btn-primary",
+                @profile.nutrition_display != "detailed" && "btn-ghost"
+              ]}
+            >
+              Detailed <span class="text-xs font-normal">(Full nutrients + vitamins)</span>
+            </button>
+          </div>
+        </div>
+
         <.tag_section
           title="Dietary Restrictions"
           description="e.g., Vegetarian, Vegan, Gluten-Free, Keto"

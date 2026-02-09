@@ -15,6 +15,7 @@ defmodule FeedMe.Profiles.TasteProfile do
     field :dislikes, {:array, :string}, default: []
     field :favorites, {:array, :string}, default: []
     field :notes, :string
+    field :nutrition_display, :string, default: "none"
 
     belongs_to :user, FeedMe.Accounts.User
     belongs_to :household, FeedMe.Households.Household
@@ -31,10 +32,12 @@ defmodule FeedMe.Profiles.TasteProfile do
       :dislikes,
       :favorites,
       :notes,
+      :nutrition_display,
       :user_id,
       :household_id
     ])
     |> validate_required([:user_id, :household_id])
+    |> validate_inclusion(:nutrition_display, ~w(none basic detailed))
     |> foreign_key_constraint(:user_id)
     |> foreign_key_constraint(:household_id)
     |> unique_constraint([:user_id, :household_id])

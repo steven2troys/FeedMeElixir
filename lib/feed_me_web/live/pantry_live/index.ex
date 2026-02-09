@@ -1,6 +1,9 @@
 defmodule FeedMeWeb.PantryLive.Index do
   use FeedMeWeb, :live_view
 
+  import FeedMeWeb.NutritionComponent
+
+  alias FeedMe.Nutrition
   alias FeedMe.Pantry
   alias FeedMe.Pantry.Item
 
@@ -24,6 +27,8 @@ defmodule FeedMeWeb.PantryLive.Index do
      |> assign(:show_new_location, false)
      |> assign(:show_manage_locations, false)
      |> assign(:editing_location, nil)
+     |> assign(:estimating_nutrition, false)
+     |> assign(:nutrition_task_ref, nil)
      |> assign(:page_title, "On Hand")}
   end
 
@@ -241,7 +246,61 @@ defmodule FeedMeWeb.PantryLive.Index do
     end
   end
 
+  def handle_event("estimate_nutrition", _params, socket) do
+    if socket.assigns.estimating_nutrition do
+      {:noreply, socket}
+    else
+      household_id = socket.assigns.household.id
+
+      task =
+        Task.Supervisor.async_nolink(FeedMe.Pantry.SyncTaskSupervisor, fn ->
+          pantry_result = Nutrition.backfill_pantry_items(household_id)
+          ingredient_result = Nutrition.backfill_recipe_ingredients(household_id)
+          {pantry_result, ingredient_result}
+        end)
+
+      {:noreply, assign(socket, estimating_nutrition: true, nutrition_task_ref: task.ref)}
+    end
+  end
+
   @impl true
+  def handle_info({ref, {pantry_result, ingredient_result}}, socket)
+      when ref == socket.assigns.nutrition_task_ref do
+    Process.demonitor(ref, [:flush])
+
+    message =
+      case {pantry_result, ingredient_result} do
+        {{:ok, pc}, {:ok, ic}} ->
+          "Estimated nutrition for #{pc} pantry items and #{ic} recipe ingredients"
+
+        {{:ok, pc}, _} ->
+          "Estimated nutrition for #{pc} pantry items (recipe ingredients failed)"
+
+        {_, {:ok, ic}} ->
+          "Estimated nutrition for #{ic} recipe ingredients (pantry items failed)"
+
+        {{:error, :no_api_key}, _} ->
+          "No API key configured. Add one in Settings."
+
+        _ ->
+          "Nutrition estimation failed"
+      end
+
+    {:noreply,
+     socket
+     |> assign(estimating_nutrition: false, nutrition_task_ref: nil)
+     |> put_flash(:info, message)
+     |> reload_items()}
+  end
+
+  def handle_info({:DOWN, ref, :process, _pid, reason}, socket)
+      when ref == socket.assigns.nutrition_task_ref do
+    {:noreply,
+     socket
+     |> assign(estimating_nutrition: false, nutrition_task_ref: nil)
+     |> put_flash(:error, "Nutrition estimation crashed: #{inspect(reason)}")}
+  end
+
   def handle_info({:item_created, _item}, socket), do: {:noreply, reload_items(socket)}
   def handle_info({:item_updated, _item}, socket), do: {:noreply, reload_items(socket)}
   def handle_info({:item_deleted, _item}, socket), do: {:noreply, reload_items(socket)}
@@ -304,6 +363,19 @@ defmodule FeedMeWeb.PantryLive.Index do
             >
               <.icon name="hero-tag" class="size-4" /> Categories
             </.link>
+          <% end %>
+          <%= if @nutrition_display != "none" do %>
+            <button
+              phx-click="estimate_nutrition"
+              class="btn btn-ghost btn-sm"
+              disabled={@estimating_nutrition}
+            >
+              <%= if @estimating_nutrition do %>
+                <span class="loading loading-spinner loading-xs"></span> Estimating...
+              <% else %>
+                <.icon name="hero-beaker" class="size-4" /> Estimate Nutrition
+              <% end %>
+            </button>
           <% end %>
         </:actions>
       </.header>
@@ -414,6 +486,7 @@ defmodule FeedMeWeb.PantryLive.Index do
                           Exp: {item.expiration_date}
                         </span>
                       <% end %>
+                      <.nutrition_badge nutrition={item.nutrition} display={@nutrition_display} />
                       <button
                         phx-click="toggle_stock"
                         phx-value-id={item.id}
