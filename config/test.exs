@@ -34,6 +34,9 @@ config :feed_me, FeedMe.Pantry.Sync,
   debounce_ms: 0,
   enabled: false
 
+# Oban inline testing mode
+config :feed_me, Oban, testing: :inline
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

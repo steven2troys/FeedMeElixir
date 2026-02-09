@@ -16,8 +16,18 @@ defmodule FeedMe.Suppliers.Supplier do
     field :supports_aisle_sorting, :boolean, default: false
     field :supports_pricing, :boolean, default: false
     field :supports_delivery, :boolean, default: false
+    field :supports_pickup, :boolean, default: false
     field :config, :map, default: %{}
 
+    field :supplier_type, Ecto.Enum,
+      values: [:grocery, :butcher, :farmers_market, :specialty, :warehouse, :online, :other]
+
+    field :website_url, :string
+    field :deep_link_search_template, :string
+    field :address, :string
+    field :notes, :string
+
+    belongs_to :household, FeedMe.Households.Household
     has_many :household_suppliers, FeedMe.Suppliers.HouseholdSupplier
 
     timestamps(type: :utc_datetime)
@@ -35,9 +45,17 @@ defmodule FeedMe.Suppliers.Supplier do
       :supports_aisle_sorting,
       :supports_pricing,
       :supports_delivery,
-      :config
+      :supports_pickup,
+      :config,
+      :supplier_type,
+      :website_url,
+      :deep_link_search_template,
+      :address,
+      :notes,
+      :household_id
     ])
     |> validate_required([:name, :code])
     |> unique_constraint(:code)
+    |> foreign_key_constraint(:household_id)
   end
 end

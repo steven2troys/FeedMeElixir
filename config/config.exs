@@ -97,6 +97,23 @@ config :feed_me, FeedMe.Pantry.Sync,
   debounce_ms: :timer.minutes(10),
   enabled: true
 
+# Oban background job processing
+config :feed_me, Oban,
+  repo: FeedMe.Repo,
+  queues: [default: 10, procurement: 5, meal_planning: 5],
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       # Run weekly suggestion dispatcher daily at 8am UTC (checks per-household day setting)
+       {"0 8 * * *", FeedMe.Scheduler, args: %{type: "weekly_suggestion"}},
+       # Run daily pantry check at 9am UTC
+       {"0 9 * * *", FeedMe.Scheduler, args: %{type: "daily_pantry_check"}},
+       # Run procurement reminder at 10am UTC
+       {"0 10 * * *", FeedMe.Scheduler, args: %{type: "procurement_reminder"}}
+     ]},
+    Oban.Plugins.Pruner
+  ]
+
 # Timezone database
 config :elixir, :time_zone_database, Tz.TimeZoneDatabase
 

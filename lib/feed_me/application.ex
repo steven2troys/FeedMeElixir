@@ -17,6 +17,8 @@ defmodule FeedMe.Application do
       # Pantry sync (AI-powered batch pantry updates from shopping lists)
       {Task.Supervisor, name: FeedMe.Pantry.SyncTaskSupervisor},
       FeedMe.Pantry.Sync,
+      # Background job processing
+      {Oban, Application.fetch_env!(:feed_me, Oban)},
       # Start to serve requests, typically the last entry
       FeedMeWeb.Endpoint
     ]

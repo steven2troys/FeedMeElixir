@@ -4,6 +4,13 @@ defmodule FeedMeWeb.SettingsLive.Index do
   alias FeedMe.Households
   alias FeedMe.Households.Household
 
+  @automation_tiers [
+    {"Off", "off", "AI won't proactively suggest or take actions"},
+    {"Recommend", "recommend", "AI prepares suggestions for your review"},
+    {"Cart Fill", "cart_fill", "AI can fill vendor carts (coming soon)"},
+    {"Auto Purchase", "auto_purchase", "AI can purchase within budget (coming soon)"}
+  ]
+
   @impl true
   def mount(_params, _session, socket) do
     household = socket.assigns.household
@@ -53,6 +60,38 @@ defmodule FeedMeWeb.SettingsLive.Index do
 
       {:error, changeset} ->
         {:noreply, assign(socket, :name_form, to_form(changeset))}
+    end
+  end
+
+  def handle_event("save_automation_tier", %{"automation_tier" => tier}, socket) do
+    case Households.update_household(socket.assigns.household, %{automation_tier: tier}) do
+      {:ok, household} ->
+        {:noreply,
+         socket
+         |> assign(:household, household)
+         |> put_flash(:info, "Automation tier updated")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to update automation tier")}
+    end
+  end
+
+  def handle_event("save_schedule", params, socket) do
+    attrs = %{
+      weekly_suggestion_enabled: params["weekly_suggestion_enabled"] == "true",
+      weekly_suggestion_day: String.to_integer(params["weekly_suggestion_day"] || "7"),
+      daily_pantry_check_enabled: params["daily_pantry_check_enabled"] == "true"
+    }
+
+    case Households.update_household(socket.assigns.household, attrs) do
+      {:ok, household} ->
+        {:noreply,
+         socket
+         |> assign(:household, household)
+         |> put_flash(:info, "Schedule settings updated")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to update schedule")}
     end
   end
 
@@ -164,6 +203,106 @@ defmodule FeedMeWeb.SettingsLive.Index do
           </div>
         </.link>
 
+        <%!-- AI Automation (Admin only) --%>
+        <%= if @role == :admin do %>
+          <div class="card bg-base-100 border border-base-200">
+            <div class="card-body">
+              <div class="flex items-center gap-3">
+                <.icon name="hero-bolt" class="size-6 text-primary" />
+                <div>
+                  <h3 class="font-semibold">AI Automation</h3>
+                  <p class="text-sm text-base-content/60">
+                    Control how proactively AI assists with procurement
+                  </p>
+                </div>
+              </div>
+              <form phx-submit="save_automation_tier" class="mt-3">
+                <div class="space-y-2">
+                  <%= for {label, value, desc} <- automation_tiers() do %>
+                    <label class={[
+                      "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                      to_string(@household.automation_tier) == value && "border-primary bg-primary/5",
+                      to_string(@household.automation_tier) != value &&
+                        "border-base-200 hover:border-base-300"
+                    ]}>
+                      <input
+                        type="radio"
+                        name="automation_tier"
+                        value={value}
+                        checked={to_string(@household.automation_tier) == value}
+                        class="radio radio-sm radio-primary mt-0.5"
+                      />
+                      <div>
+                        <span class="font-medium text-sm">{label}</span>
+                        <p class="text-xs text-base-content/60">{desc}</p>
+                      </div>
+                    </label>
+                  <% end %>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm mt-3">Save</button>
+              </form>
+
+              <%!-- Schedule Settings (only show when not :off) --%>
+              <%= if @household.automation_tier != :off do %>
+                <div class="divider"></div>
+                <h4 class="font-medium text-sm">Schedule</h4>
+                <form phx-submit="save_schedule" class="mt-2 space-y-3">
+                  <label class="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      name="weekly_suggestion_enabled"
+                      value="true"
+                      checked={@household.weekly_suggestion_enabled}
+                      class="checkbox checkbox-sm checkbox-primary"
+                    />
+                    <span class="text-sm">Weekly meal plan suggestions</span>
+                  </label>
+                  <div class="ml-8">
+                    <select
+                      name="weekly_suggestion_day"
+                      class="select select-bordered select-xs"
+                    >
+                      <%= for {name, val} <- day_options() do %>
+                        <option value={val} selected={@household.weekly_suggestion_day == val}>
+                          {name}
+                        </option>
+                      <% end %>
+                    </select>
+                  </div>
+                  <label class="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      name="daily_pantry_check_enabled"
+                      value="true"
+                      checked={@household.daily_pantry_check_enabled}
+                      class="checkbox checkbox-sm checkbox-primary"
+                    />
+                    <span class="text-sm">Daily pantry restock & expiry check</span>
+                  </label>
+                  <button type="submit" class="btn btn-primary btn-sm">Save Schedule</button>
+                </form>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <%!-- Suppliers --%>
+        <.link
+          navigate={~p"/households/#{@household.id}/settings/suppliers"}
+          class="card bg-base-100 border border-base-200 hover:border-primary hover:shadow-md transition-all"
+        >
+          <div class="card-body flex-row items-center justify-between">
+            <div class="flex items-center gap-3">
+              <.icon name="hero-building-storefront" class="size-6 text-primary" />
+              <div>
+                <h3 class="font-semibold">Suppliers</h3>
+                <p class="text-sm text-base-content/60">Manage grocery suppliers</p>
+              </div>
+            </div>
+            <.icon name="hero-chevron-right" class="size-5 text-base-content/40" />
+          </div>
+        </.link>
+
         <%!-- My Households --%>
         <.link
           navigate={~p"/households/#{@household.id}/settings/households"}
@@ -220,6 +359,20 @@ defmodule FeedMeWeb.SettingsLive.Index do
     |> Enum.reject(&MapSet.member?(common, &1))
     |> Enum.group_by(fn tz -> tz |> String.split("/") |> hd() end)
     |> Enum.sort_by(fn {region, _} -> region end)
+  end
+
+  defp automation_tiers, do: @automation_tiers
+
+  defp day_options do
+    [
+      {"Monday", 1},
+      {"Tuesday", 2},
+      {"Wednesday", 3},
+      {"Thursday", 4},
+      {"Friday", 5},
+      {"Saturday", 6},
+      {"Sunday", 7}
+    ]
   end
 
   defp all_timezones do
