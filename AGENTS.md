@@ -1,5 +1,13 @@
 This is a web application written using the Phoenix web framework.
 
+## FeedMe Project Conventions
+
+- **PubSub pattern**: New contexts that need real-time updates should follow the existing pattern: add `subscribe(household_id)` and `defp broadcast/2` functions. Topic format: `"context_name:#{household_id}"`. Broadcast tuple format: `{:event_name, record}`
+- **UUID primary keys**: All schemas must use `@primary_key {:id, :binary_id, autogenerate: true}` and `@foreign_key_type :binary_id`. This is configured globally via generators config
+- **Oban worker placement**: Workers go in `lib/feed_me/<context>/jobs/<worker_name>.ex` (e.g., `lib/feed_me/procurement/jobs/daily_pantry_check.ex`). Use dedicated queues for domain-specific work, `:default` queue for dispatchers
+- **Nutrition.Info embedded schema**: When adding nutrition support to a new schema, add a `field :nutrition, :map` column (JSONB) and use `FeedMe.Nutrition.Info` for casting/display. Use `Nutrition.for_display/2` to filter by user's display tier
+- **Automation tier checks**: Background jobs that take automated actions must check `household.automation_tier` before proceeding. Use `!= :off` for notifications, `>= :recommend` for suggestions, `>= :cart_fill` for cart modifications, `== :auto_purchase` for purchases
+
 ## Project guidelines
 
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues
