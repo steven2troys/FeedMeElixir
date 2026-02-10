@@ -58,6 +58,30 @@
         </.link>
 
         <.link
+          navigate={~p"/households/#{@household.id}/meal-plans"}
+          class={[
+            "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+            assigns[:active_tab] == :meal_plans && "bg-primary text-primary-content",
+            assigns[:active_tab] != :meal_plans && "hover:bg-base-300 text-base-content"
+          ]}
+        >
+          <.icon name="hero-calendar-days" class="size-5" />
+          <span class="font-medium">Meal Plans</span>
+        </.link>
+
+        <.link
+          navigate={~p"/households/#{@household.id}/procurement"}
+          class={[
+            "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+            assigns[:active_tab] == :procurement && "bg-primary text-primary-content",
+            assigns[:active_tab] != :procurement && "hover:bg-base-300 text-base-content"
+          ]}
+        >
+          <.icon name="hero-clipboard-document-list" class="size-5" />
+          <span class="font-medium">Procurement</span>
+        </.link>
+
+        <.link
           navigate={~p"/households/#{@household.id}/chat"}
           class={[
             "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
@@ -144,9 +168,15 @@
             role="button"
             class={[
               "flex flex-col items-center justify-center gap-0.5 min-w-[3rem] py-1 text-xs transition-colors",
-              assigns[:active_tab] in [:dashboard, :members, :settings] &&
+              assigns[:active_tab] in [:dashboard, :meal_plans, :procurement, :members, :settings] &&
                 "text-primary font-semibold",
-              assigns[:active_tab] not in [:dashboard, :members, :settings] &&
+              assigns[:active_tab] not in [
+                :dashboard,
+                :meal_plans,
+                :procurement,
+                :members,
+                :settings
+              ] &&
                 "text-base-content/60"
             ]}
           >
@@ -160,6 +190,16 @@
             <li>
               <.link navigate={~p"/households/#{@household.id}"}>
                 <.icon name="hero-home" class="size-4" /> Dashboard
+              </.link>
+            </li>
+            <li>
+              <.link navigate={~p"/households/#{@household.id}/meal-plans"}>
+                <.icon name="hero-calendar-days" class="size-4" /> Meal Plans
+              </.link>
+            </li>
+            <li>
+              <.link navigate={~p"/households/#{@household.id}/procurement"}>
+                <.icon name="hero-clipboard-document-list" class="size-4" /> Procurement
               </.link>
             </li>
             <li>

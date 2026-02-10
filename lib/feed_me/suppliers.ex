@@ -12,11 +12,34 @@ defmodule FeedMe.Suppliers do
   # =============================================================================
 
   @doc """
-  Lists all active suppliers.
+  Lists all active system (global) suppliers.
   """
   def list_suppliers do
     Supplier
-    |> where([s], s.is_active == true)
+    |> where([s], s.is_active == true and is_nil(s.household_id))
+    |> order_by([s], asc: s.name)
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists custom suppliers created by a household.
+  """
+  def list_custom_suppliers(household_id) do
+    Supplier
+    |> where([s], s.household_id == ^household_id)
+    |> order_by([s], asc: s.name)
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all suppliers available to a household (system + custom).
+  """
+  def list_available_suppliers(household_id) do
+    Supplier
+    |> where(
+      [s],
+      (s.is_active == true and is_nil(s.household_id)) or s.household_id == ^household_id
+    )
     |> order_by([s], asc: s.name)
     |> Repo.all()
   end
@@ -51,6 +74,29 @@ defmodule FeedMe.Suppliers do
     supplier
     |> Supplier.changeset(attrs)
     |> Repo.update()
+  end
+
+  @doc """
+  Deletes a supplier (only custom/household-owned suppliers).
+  """
+  def delete_supplier(%Supplier{} = supplier) do
+    Repo.delete(supplier)
+  end
+
+  @doc """
+  Returns a changeset for a supplier.
+  """
+  def change_supplier(%Supplier{} = supplier, attrs \\ %{}) do
+    Supplier.changeset(supplier, attrs)
+  end
+
+  @doc """
+  Generates a deep link search URL for a supplier and product query.
+  """
+  def generate_deep_link(%Supplier{deep_link_search_template: nil}, _query), do: nil
+
+  def generate_deep_link(%Supplier{deep_link_search_template: template}, query) do
+    String.replace(template, "{query}", URI.encode_www_form(query))
   end
 
   @doc """

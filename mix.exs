@@ -76,6 +76,8 @@ defmodule FeedMe.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       # Environment variables from .env
       {:dotenvy, "~> 0.8", only: [:dev, :test]},
+      # Background job processing
+      {:oban, "~> 2.18"},
       # Timezone database
       {:tz, "~> 0.28"}
     ]

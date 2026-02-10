@@ -112,6 +112,17 @@ defmodule FeedMeWeb.Router do
       live "/households/:household_id/recipes/:id/edit", RecipeLive.Show, :edit
       live "/households/:household_id/recipes/:id/cook", RecipeLive.Show, :cook
 
+      # Meal Plan routes
+      live "/households/:household_id/meal-plans", MealPlanLive.Index, :index
+      live "/households/:household_id/meal-plans/new", MealPlanLive.Index, :new
+      live "/households/:household_id/meal-plans/:id", MealPlanLive.Show, :show
+      live "/households/:household_id/meal-plans/:id/edit", MealPlanLive.Show, :edit
+
+      # Procurement routes
+      live "/households/:household_id/procurement", ProcurementLive.Index, :index
+      live "/households/:household_id/procurement/new", ProcurementLive.Index, :new
+      live "/households/:household_id/procurement/:id", ProcurementLive.Show, :show
+
       # AI Chat routes
       live "/households/:household_id/chat", ChatLive.Index, :index
       live "/households/:household_id/chat/:id", ChatLive.Show, :show
@@ -122,6 +133,7 @@ defmodule FeedMeWeb.Router do
       live "/households/:household_id/settings/households", SettingsLive.Households, :index
       live "/households/:household_id/settings/households/new", SettingsLive.Households, :new
       live "/households/:household_id/settings/api-key", SettingsLive.ApiKey, :edit
+      live "/households/:household_id/settings/suppliers", SettingsLive.Suppliers, :index
     end
 
     # Invitation acceptance

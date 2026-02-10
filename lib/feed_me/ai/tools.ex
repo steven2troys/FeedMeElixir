@@ -3,7 +3,7 @@ defmodule FeedMe.AI.Tools do
   AI tool definitions and execution for FeedMe assistant.
   """
 
-  alias FeedMe.{Pantry, Profiles, Recipes, Shopping}
+  alias FeedMe.{MealPlanning, Pantry, Procurement, Profiles, Recipes, Shopping, Suppliers}
   alias FeedMe.AI.{ApiKey, OpenRouter}
 
   @doc """
@@ -20,7 +20,11 @@ defmodule FeedMe.AI.Tools do
       suggest_recipe(),
       search_web(),
       add_recipe(),
-      estimate_nutrition()
+      estimate_nutrition(),
+      suggest_meal_plan(),
+      create_procurement_plan(),
+      sync_procurement_to_shopping_list(),
+      get_supplier_link()
     ]
   end
 
@@ -29,17 +33,50 @@ defmodule FeedMe.AI.Tools do
   """
   def execute(tool_name, args, context) do
     case tool_name do
-      "add_to_pantry" -> execute_add_to_pantry(args, context)
-      "add_to_shopping_list" -> execute_add_to_shopping_list(args, context)
-      "search_recipes" -> execute_search_recipes(args, context)
-      "get_taste_profiles" -> execute_get_taste_profiles(args, context)
-      "check_pantry" -> execute_check_pantry(args, context)
-      "get_pantry_categories" -> execute_get_pantry_categories(args, context)
-      "suggest_recipe" -> execute_suggest_recipe(args, context)
-      "search_web" -> execute_search_web(args, context)
-      "add_recipe" -> execute_add_recipe(args, context)
-      "estimate_nutrition" -> execute_estimate_nutrition(args, context)
-      _ -> {:error, "Unknown tool: #{tool_name}"}
+      "add_to_pantry" ->
+        execute_add_to_pantry(args, context)
+
+      "add_to_shopping_list" ->
+        execute_add_to_shopping_list(args, context)
+
+      "search_recipes" ->
+        execute_search_recipes(args, context)
+
+      "get_taste_profiles" ->
+        execute_get_taste_profiles(args, context)
+
+      "check_pantry" ->
+        execute_check_pantry(args, context)
+
+      "get_pantry_categories" ->
+        execute_get_pantry_categories(args, context)
+
+      "suggest_recipe" ->
+        execute_suggest_recipe(args, context)
+
+      "search_web" ->
+        execute_search_web(args, context)
+
+      "add_recipe" ->
+        execute_add_recipe(args, context)
+
+      "estimate_nutrition" ->
+        execute_estimate_nutrition(args, context)
+
+      "suggest_meal_plan" ->
+        execute_suggest_meal_plan(args, context)
+
+      "create_procurement_plan" ->
+        execute_create_procurement_plan(args, context)
+
+      "sync_procurement_to_shopping_list" ->
+        execute_sync_procurement_to_shopping_list(args, context)
+
+      "get_supplier_link" ->
+        execute_get_supplier_link(args, context)
+
+      _ ->
+        {:error, "Unknown tool: #{tool_name}"}
     end
   end
 
@@ -331,6 +368,117 @@ defmodule FeedMe.AI.Tools do
             }
           },
           required: ["nutrition"]
+        }
+      }
+    }
+  end
+
+  defp suggest_meal_plan do
+    %{
+      type: "function",
+      function: %{
+        name: "suggest_meal_plan",
+        description:
+          "Create an AI-suggested meal plan for a date range. Uses household recipes, pantry stock, taste profiles, and cooking history to generate a balanced plan.",
+        parameters: %{
+          type: "object",
+          properties: %{
+            start_date: %{
+              type: "string",
+              description: "Start date in YYYY-MM-DD format"
+            },
+            end_date: %{
+              type: "string",
+              description: "End date in YYYY-MM-DD format"
+            },
+            meals_per_day: %{
+              type: "array",
+              items: %{type: "string", enum: ["breakfast", "lunch", "dinner", "snack"]},
+              description:
+                "Which meals to plan for each day. Defaults to [\"breakfast\", \"lunch\", \"dinner\"]"
+            },
+            prefer_pantry_items: %{
+              type: "boolean",
+              description: "Prioritize recipes that use items already in the pantry"
+            },
+            servings: %{
+              type: "integer",
+              description: "Default servings per meal"
+            }
+          },
+          required: ["start_date", "end_date"]
+        }
+      }
+    }
+  end
+
+  defp create_procurement_plan do
+    %{
+      type: "function",
+      function: %{
+        name: "create_procurement_plan",
+        description:
+          "Create a procurement plan from a meal plan, restock needs, or expiring items. Aggregates needs, subtracts pantry stock, assigns default supplier, and generates shopping links.",
+        parameters: %{
+          type: "object",
+          properties: %{
+            meal_plan_id: %{
+              type: "string",
+              description: "ID of the meal plan to create procurement from (optional)"
+            },
+            include_restock: %{
+              type: "boolean",
+              description: "Include items needing restock"
+            },
+            include_expiring: %{
+              type: "boolean",
+              description: "Include items expiring soon"
+            }
+          }
+        }
+      }
+    }
+  end
+
+  defp sync_procurement_to_shopping_list do
+    %{
+      type: "function",
+      function: %{
+        name: "sync_procurement_to_shopping_list",
+        description: "Add approved procurement plan items to the main shopping list",
+        parameters: %{
+          type: "object",
+          properties: %{
+            procurement_plan_id: %{
+              type: "string",
+              description: "ID of the procurement plan to sync"
+            }
+          },
+          required: ["procurement_plan_id"]
+        }
+      }
+    }
+  end
+
+  defp get_supplier_link do
+    %{
+      type: "function",
+      function: %{
+        name: "get_supplier_link",
+        description: "Generate a deep-link URL to search for a product on a supplier's website",
+        parameters: %{
+          type: "object",
+          properties: %{
+            product_name: %{
+              type: "string",
+              description: "Name of the product to search for"
+            },
+            supplier_id: %{
+              type: "string",
+              description: "ID of the supplier (uses household default if not provided)"
+            }
+          },
+          required: ["product_name"]
         }
       }
     }
@@ -659,6 +807,172 @@ defmodule FeedMe.AI.Tools do
 
       true ->
         {:error, "Either item_id or ingredient_id is required"}
+    end
+  end
+
+  defp execute_create_procurement_plan(args, %{household_id: household_id, user: user}) do
+    results = []
+
+    results =
+      if args["meal_plan_id"] do
+        case MealPlanning.get_meal_plan(args["meal_plan_id"], household_id) do
+          nil ->
+            [{:error, "Meal plan not found"} | results]
+
+          meal_plan ->
+            case Procurement.create_from_meal_plan(meal_plan, user) do
+              {:ok, :no_needs} ->
+                [{:ok, "No shopping needs for this meal plan"} | results]
+
+              {:ok, plan} ->
+                [{:ok, "Created procurement plan \"#{plan.name}\" from meal plan"} | results]
+
+              {:error, _} ->
+                [{:error, "Failed to create from meal plan"} | results]
+            end
+        end
+      else
+        results
+      end
+
+    results =
+      if args["include_restock"] do
+        case Procurement.create_from_restock(household_id, user) do
+          {:ok, :no_needs} -> [{:ok, "No items need restocking"} | results]
+          {:ok, plan} -> [{:ok, "Created restock plan \"#{plan.name}\""} | results]
+          {:error, _} -> [{:error, "Failed to create restock plan"} | results]
+        end
+      else
+        results
+      end
+
+    results =
+      if args["include_expiring"] do
+        case Procurement.create_from_expiring(household_id, user) do
+          {:ok, :no_needs} -> [{:ok, "No items expiring soon"} | results]
+          {:ok, plan} -> [{:ok, "Created expiring items plan \"#{plan.name}\""} | results]
+          {:error, _} -> [{:error, "Failed to create expiring items plan"} | results]
+        end
+      else
+        results
+      end
+
+    if results == [] do
+      {:error,
+       "No procurement source specified. Provide meal_plan_id, include_restock, or include_expiring."}
+    else
+      messages =
+        results
+        |> Enum.reverse()
+        |> Enum.map(fn
+          {:ok, msg} -> msg
+          {:error, msg} -> "Error: #{msg}"
+        end)
+        |> Enum.join("\n")
+
+      {:ok, messages}
+    end
+  end
+
+  defp execute_sync_procurement_to_shopping_list(args, %{household_id: household_id, user: user}) do
+    case Procurement.get_plan(args["procurement_plan_id"], household_id) do
+      nil ->
+        {:error, "Procurement plan not found"}
+
+      plan ->
+        case Procurement.sync_to_shopping_list(plan, user) do
+          {:ok, %{added: added}} ->
+            {:ok, "Added #{added} items from procurement plan to shopping list"}
+        end
+    end
+  end
+
+  defp execute_get_supplier_link(args, %{household_id: household_id}) do
+    product_name = args["product_name"]
+
+    supplier =
+      if args["supplier_id"] do
+        Suppliers.get_supplier(args["supplier_id"])
+      else
+        hs = Suppliers.get_default_supplier(household_id)
+        hs && FeedMe.Repo.preload(hs, :supplier).supplier
+      end
+
+    case supplier do
+      nil ->
+        {:error, "No supplier found. Enable a supplier in Settings > Suppliers."}
+
+      supplier ->
+        case Suppliers.generate_deep_link(supplier, product_name) do
+          nil ->
+            {:ok,
+             "#{supplier.name} doesn't have a search URL configured. Visit #{supplier.website_url || supplier.name} to search for \"#{product_name}\"."}
+
+          url ->
+            {:ok, "Search for \"#{product_name}\" on #{supplier.name}: #{url}"}
+        end
+    end
+  end
+
+  defp execute_suggest_meal_plan(args, %{household_id: household_id, user: user}) do
+    start_date = Date.from_iso8601!(args["start_date"])
+    end_date = Date.from_iso8601!(args["end_date"])
+    meals = args["meals_per_day"] || ["breakfast", "lunch", "dinner"]
+    servings = args["servings"]
+
+    # Get household recipes
+    recipes = Recipes.list_recipes(household_id)
+
+    if recipes == [] do
+      {:error,
+       "No recipes in your recipe book yet. Add some recipes first to generate a meal plan."}
+    else
+      plan_name = "Week of #{Calendar.strftime(start_date, "%b %d")}"
+
+      case MealPlanning.create_meal_plan(%{
+             name: plan_name,
+             start_date: start_date,
+             end_date: end_date,
+             household_id: household_id,
+             created_by_id: user.id,
+             ai_generated: true,
+             status: :draft
+           }) do
+        {:ok, meal_plan} ->
+          # Distribute recipes across days and meal types
+          dates = Date.range(start_date, end_date) |> Enum.to_list()
+          shuffled_recipes = Enum.shuffle(recipes)
+          recipe_cycle = Stream.cycle(shuffled_recipes)
+
+          items =
+            for {date, day_idx} <- Enum.with_index(dates),
+                {meal_type, meal_idx} <- Enum.with_index(meals) do
+              idx = day_idx * length(meals) + meal_idx
+              recipe = Enum.at(recipe_cycle, idx)
+
+              %{
+                date: date,
+                meal_type: meal_type,
+                title: recipe.title,
+                servings: servings || recipe.servings,
+                meal_plan_id: meal_plan.id,
+                recipe_id: recipe.id,
+                assigned_by_id: user.id
+              }
+            end
+
+          Enum.each(items, &MealPlanning.create_item/1)
+
+          total_items = length(items)
+          total_days = length(dates)
+
+          {:ok,
+           "Created draft meal plan \"#{plan_name}\" with #{total_items} meals across #{total_days} days. " <>
+             "Review and modify the plan at the Meal Plans page, then activate it when ready."}
+
+        {:error, changeset} ->
+          {:error, "Failed to create meal plan: #{format_changeset_errors(changeset)}"}
+      end
     end
   end
 
