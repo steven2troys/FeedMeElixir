@@ -79,18 +79,18 @@ config :ueberauth, Ueberauth,
     google: {Ueberauth.Strategy.Google, [default_scope: "email profile"]}
   ]
 
-# Google OAuth credentials (override in runtime.exs for production)
+# Google OAuth credentials (set in dev.exs/test.exs via dotenvy, runtime.exs for prod)
 config :ueberauth, Ueberauth.Strategy.Google.OAuth,
-  client_id: System.get_env("GOOGLE_CLIENT_ID"),
-  client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
+  client_id: "not-set",
+  client_secret: "not-set"
 
 # OpenRouter API configuration
 config :feed_me, :openrouter,
-  api_key: System.get_env("OPENROUTER_API_KEY"),
-  default_model: System.get_env("OPENROUTER_DEFAULT_MODEL", "anthropic/claude-3.5-sonnet")
+  api_key: nil,
+  default_model: "anthropic/claude-3.5-sonnet"
 
 # Encryption key for API keys (32 bytes for AES-256)
-config :feed_me, :encryption_key, System.get_env("ENCRYPTION_KEY")
+config :feed_me, :encryption_key, nil
 
 # Pantry Sync (AI-powered batch pantry updates from shopping lists)
 config :feed_me, FeedMe.Pantry.Sync,

@@ -100,3 +100,16 @@ config :swoosh, :api_client, false
 config :feed_me, FeedMe.Pantry.Sync,
   debounce_ms: :timer.seconds(30),
   enabled: true
+
+# Google OAuth credentials (loaded from .env via dotenvy above)
+config :ueberauth, Ueberauth.Strategy.Google.OAuth,
+  client_id: System.get_env("GOOGLE_CLIENT_ID"),
+  client_secret: System.get_env("GOOGLE_CLIENT_SECRET")
+
+# OpenRouter API configuration
+config :feed_me, :openrouter,
+  api_key: System.get_env("OPENROUTER_API_KEY"),
+  default_model: System.get_env("OPENROUTER_DEFAULT_MODEL", "anthropic/claude-3.5-sonnet")
+
+# Encryption key for API keys
+config :feed_me, :encryption_key, System.get_env("ENCRYPTION_KEY")

@@ -47,3 +47,16 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Google OAuth credentials (use env vars if available, otherwise test defaults)
+config :ueberauth, Ueberauth.Strategy.Google.OAuth,
+  client_id: System.get_env("GOOGLE_CLIENT_ID") || "test-client-id",
+  client_secret: System.get_env("GOOGLE_CLIENT_SECRET") || "test-client-secret"
+
+# OpenRouter API configuration
+config :feed_me, :openrouter,
+  api_key: System.get_env("OPENROUTER_API_KEY"),
+  default_model: "anthropic/claude-3.5-sonnet"
+
+# Encryption key for API keys
+config :feed_me, :encryption_key, System.get_env("ENCRYPTION_KEY") || "test-encryption-key-32bytes!!"

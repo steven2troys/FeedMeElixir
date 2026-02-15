@@ -9,7 +9,7 @@ defmodule FeedMe.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"FeedMe", "contact@example.com"})
+      |> from({"FeedMe", "noreply@2troys.com"})
       |> subject(subject)
       |> text_body(body)
 

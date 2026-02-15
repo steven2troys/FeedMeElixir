@@ -100,21 +100,27 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
-  # ## Configuring the mailer
-  #
-  # In production you need to configure the mailer to use a different adapter.
-  # Here is an example configuration for Mailgun:
-  #
-  #     config :feed_me, FeedMe.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
-  # and Finch out-of-the-box. This configuration is typically done at
-  # compile-time in your config/prod.exs:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
-  #
-  # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
+  # Google OAuth
+  config :ueberauth, Ueberauth.Strategy.Google.OAuth,
+    client_id: System.fetch_env!("GOOGLE_CLIENT_ID"),
+    client_secret: System.fetch_env!("GOOGLE_CLIENT_SECRET")
+
+  # OpenRouter API
+  config :feed_me, :openrouter,
+    api_key: System.get_env("OPENROUTER_API_KEY"),
+    default_model: System.get_env("OPENROUTER_DEFAULT_MODEL", "anthropic/claude-3.5-sonnet")
+
+  # Encryption key for BYOK API keys
+  config :feed_me, :encryption_key,
+    System.get_env("ENCRYPTION_KEY") ||
+      raise("environment variable ENCRYPTION_KEY is missing")
+
+  # Resend for transactional email
+  config :feed_me, FeedMe.Mailer,
+    adapter: Swoosh.Adapters.Resend,
+    api_key: System.fetch_env!("RESEND_API_KEY")
+
+  # WebSocket origin checking for LiveView
+  config :feed_me, FeedMeWeb.Endpoint,
+    check_origin: ["https://2troys.com", "https://www.2troys.com"]
 end
