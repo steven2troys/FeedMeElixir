@@ -65,6 +65,30 @@ defmodule FeedMe.Accounts.UserNotifier do
     """)
   end
 
+  @doc """
+  Deliver a household invitation email.
+  """
+  def deliver_invitation_email(email, invitation_url, household_name, inviter_name) do
+    deliver(email, "You're invited to join #{household_name} on FeedMe", """
+
+    ==============================
+
+    Hi!
+
+    #{inviter_name} has invited you to join the household "#{household_name}" on FeedMe.
+
+    You can accept the invitation by visiting the URL below:
+
+    #{invitation_url}
+
+    This invitation will expire in 7 days.
+
+    If you weren't expecting this invitation, please ignore this email.
+
+    ==============================
+    """)
+  end
+
   defp deliver_confirmation_instructions(user, url) do
     deliver(user.email, "Confirmation instructions", """
 

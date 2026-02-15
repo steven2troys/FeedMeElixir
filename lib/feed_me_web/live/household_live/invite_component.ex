@@ -1,6 +1,7 @@
 defmodule FeedMeWeb.HouseholdLive.InviteComponent do
   use FeedMeWeb, :live_component
 
+  alias FeedMe.Accounts.UserNotifier
   alias FeedMe.Households
   alias FeedMe.Households.Invitation
 
@@ -66,7 +67,16 @@ defmodule FeedMeWeb.HouseholdLive.InviteComponent do
 
     case Households.create_invitation(params, socket.assigns.current_user) do
       {:ok, invitation} ->
-        # In a real app, you'd send an email here
+        invitation_url = url(socket, ~p"/invitations/#{invitation.token}")
+        inviter_name = socket.assigns.current_user.name || socket.assigns.current_user.email
+
+        UserNotifier.deliver_invitation_email(
+          invitation.email,
+          invitation_url,
+          socket.assigns.household.name,
+          inviter_name
+        )
+
         send(self(), {:invitation_created, invitation})
 
         {:noreply,

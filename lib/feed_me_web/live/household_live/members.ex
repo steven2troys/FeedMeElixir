@@ -208,6 +208,12 @@ defmodule FeedMeWeb.HouseholdLive.Members do
   end
 
   @impl true
+  def handle_info({:invitation_created, _invitation}, socket) do
+    {:noreply,
+     assign(socket, :invitations, Households.list_pending_invitations(socket.assigns.household.id))}
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="mx-auto max-w-4xl">
