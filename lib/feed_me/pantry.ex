@@ -563,7 +563,7 @@ defmodule FeedMe.Pantry do
   Adds quantity to an item.
   """
   def add_to_item(%Item{} = item, amount, user, opts \\ []) do
-    adjust_quantity(item, Decimal.new(amount), user, Keyword.put(opts, :action, :add))
+    adjust_quantity(item, to_decimal(amount), user, Keyword.put(opts, :action, :add))
   end
 
   @doc """
@@ -572,7 +572,7 @@ defmodule FeedMe.Pantry do
   def remove_from_item(%Item{} = item, amount, user, opts \\ []) do
     adjust_quantity(
       item,
-      Decimal.negate(Decimal.new(amount)),
+      Decimal.negate(to_decimal(amount)),
       user,
       Keyword.put(opts, :action, :remove)
     )
@@ -584,11 +584,15 @@ defmodule FeedMe.Pantry do
   def use_item(%Item{} = item, amount, user, opts \\ []) do
     adjust_quantity(
       item,
-      Decimal.negate(Decimal.new(amount)),
+      Decimal.negate(to_decimal(amount)),
       user,
       Keyword.put(opts, :action, :use)
     )
   end
+
+  defp to_decimal(%Decimal{} = d), do: d
+  defp to_decimal(amount) when is_float(amount), do: Decimal.from_float(amount)
+  defp to_decimal(amount), do: Decimal.new(amount)
 
   @doc """
   Returns items that need restocking.

@@ -27,6 +27,8 @@ defmodule FeedMe.Pantry.Sync do
   def queue_item(household_id, storage_location_id, item_attrs) do
     if enabled?() do
       GenServer.cast(__MODULE__, {:queue_item, household_id, storage_location_id, item_attrs})
+    else
+      Logger.warning("Pantry.Sync: Disabled, skipping queue for '#{item_attrs.name}'")
     end
   end
 
@@ -247,9 +249,20 @@ defmodule FeedMe.Pantry.Sync do
     Enum.map(tool_calls, fn tool_call ->
       function = tool_call["function"]
       tool_name = function["name"]
-      args = Jason.decode!(function["arguments"])
 
-      result = execute_tool(tool_name, args, household_id, storage_location_id)
+      result =
+        try do
+          args = Jason.decode!(function["arguments"])
+          execute_tool(tool_name, args, household_id, storage_location_id)
+        rescue
+          e ->
+            Logger.error(
+              "Pantry.Sync: Tool #{tool_name} crashed: #{Exception.message(e)}"
+            )
+
+            "Error: tool execution failed: #{Exception.message(e)}"
+        end
+
       Logger.info("Pantry.Sync: #{tool_name} -> #{result}")
 
       %{tool_call_id: tool_call["id"], content: result}

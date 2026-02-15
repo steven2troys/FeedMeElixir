@@ -1,9 +1,3 @@
-defimpl Jason.Encoder, for: Decimal do
-  def encode(decimal, _opts) do
-    [Decimal.to_string(decimal, :normal)]
-  end
-end
-
 defmodule FeedMe.Nutrition.Info do
   @moduledoc """
   Embedded schema for nutritional information.

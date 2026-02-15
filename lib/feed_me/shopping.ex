@@ -232,6 +232,7 @@ defmodule FeedMe.Shopping do
   Toggles the checked status of an item.
   """
   def toggle_item_checked(%Item{} = item, user_id) do
+    require Logger
     item = Repo.preload(item, [:shopping_list, :pantry_item])
     was_unchecked = not item.checked
 
@@ -242,6 +243,10 @@ defmodule FeedMe.Shopping do
       case result do
         {:ok, updated} ->
           location_id = item.shopping_list.auto_add_to_location_id
+
+          Logger.info(
+            "Shopping: toggle_item '#{item.name}' was_unchecked=#{was_unchecked} location_id=#{inspect(location_id)}"
+          )
 
           if location_id do
             if was_unchecked do
