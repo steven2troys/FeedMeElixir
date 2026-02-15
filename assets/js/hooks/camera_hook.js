@@ -2,35 +2,37 @@
  * Camera Hook
  *
  * Provides camera capture and image upload functionality.
+ * Uses event delegation on the root element so listeners survive
+ * LiveView DOM morphing across component mode changes.
+ * Uses pushEventTo to explicitly target the LiveComponent.
  */
 
 const CameraHook = {
   mounted() {
     this.stream = null;
-    this.setupEventListeners();
+
+    // Server push events (persist across updates)
+    this.handleEvent("start_camera", () => this.startCamera());
+    this.handleEvent("stop_camera", () => this.stopCamera());
+
+    // Event delegation on root element - survives DOM morphing
+    this.el.addEventListener("click", (e) => {
+      const captureBtn = e.target.closest("[data-capture]");
+      if (captureBtn) {
+        this.captureImage();
+      }
+    });
+
+    this.el.addEventListener("change", (e) => {
+      if (e.target.matches('input[type="file"]')) {
+        this.handleFileSelect(e);
+      }
+    });
   },
 
-  setupEventListeners() {
-    // Handle capture button click
-    this.handleEvent("start_camera", () => {
-      this.startCamera();
-    });
-
-    this.handleEvent("stop_camera", () => {
-      this.stopCamera();
-    });
-
-    // File input for image upload
-    const fileInput = this.el.querySelector('input[type="file"]');
-    if (fileInput) {
-      fileInput.addEventListener("change", (e) => this.handleFileSelect(e));
-    }
-
-    // Capture button
-    const captureBtn = this.el.querySelector("[data-capture]");
-    if (captureBtn) {
-      captureBtn.addEventListener("click", () => this.captureImage());
-    }
+  // Push event explicitly to this component (not the parent LiveView)
+  pushToComponent(event, payload = {}) {
+    this.pushEventTo(`#${this.el.id}`, event, payload);
   },
 
   async startCamera() {
@@ -48,11 +50,9 @@ const CameraHook = {
 
       video.srcObject = this.stream;
       video.play();
-
-      this.pushEvent("camera_started", {});
     } catch (error) {
       console.error("Error accessing camera:", error);
-      this.pushEvent("camera_error", { error: "Camera access denied" });
+      this.pushToComponent("camera_error", { error: "Camera access denied" });
     }
   },
 
@@ -66,16 +66,15 @@ const CameraHook = {
     if (video) {
       video.srcObject = null;
     }
-
-    this.pushEvent("camera_stopped", {});
   },
 
   captureImage() {
     const video = this.el.querySelector("video");
-    const canvas = this.el.querySelector("canvas") || document.createElement("canvas");
+    const canvas =
+      this.el.querySelector("canvas") || document.createElement("canvas");
 
     if (!video || !video.videoWidth) {
-      this.pushEvent("camera_error", { error: "Camera not ready" });
+      this.pushToComponent("camera_error", { error: "Camera not ready" });
       return;
     }
 
@@ -90,7 +89,7 @@ const CameraHook = {
     // Convert to base64
     const imageData = canvas.toDataURL("image/jpeg", 0.8);
 
-    this.pushEvent("image_captured", { image: imageData });
+    this.pushToComponent("image_captured", { image: imageData });
 
     // Stop camera after capture
     this.stopCamera();
@@ -102,13 +101,17 @@ const CameraHook = {
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      this.pushEvent("camera_error", { error: "Please select an image file" });
+      this.pushToComponent("camera_error", {
+        error: "Please select an image file",
+      });
       return;
     }
 
     // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
-      this.pushEvent("camera_error", { error: "Image too large. Max 10MB." });
+      this.pushToComponent("camera_error", {
+        error: "Image too large. Max 10MB.",
+      });
       return;
     }
 
@@ -116,11 +119,11 @@ const CameraHook = {
     reader.onload = (e) => {
       // Optionally resize if too large
       this.resizeImage(e.target.result, 1920, (resizedData) => {
-        this.pushEvent("image_uploaded", { image: resizedData });
+        this.pushToComponent("image_uploaded", { image: resizedData });
       });
     };
     reader.onerror = () => {
-      this.pushEvent("camera_error", { error: "Failed to read file" });
+      this.pushToComponent("camera_error", { error: "Failed to read file" });
     };
     reader.readAsDataURL(file);
   },
@@ -154,7 +157,11 @@ const CameraHook = {
   },
 
   destroyed() {
-    this.stopCamera();
+    // Don't pushEvent in destroyed - LiveView may already be disconnected
+    if (this.stream) {
+      this.stream.getTracks().forEach((track) => track.stop());
+      this.stream = null;
+    }
   },
 };
 

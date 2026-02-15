@@ -26,8 +26,6 @@ defmodule FeedMeWeb.ChatLive.CameraComponent do
               type="file"
               accept="image/*"
               class="hidden"
-              phx-change="file_selected"
-              phx-target={@myself}
             />
           </label>
         </div>
@@ -110,25 +108,12 @@ defmodule FeedMeWeb.ChatLive.CameraComponent do
     {:noreply, push_event(socket, "stop_camera", %{}) |> assign(:mode, :idle)}
   end
 
-  def handle_event("camera_started", _params, socket) do
-    {:noreply, socket}
-  end
-
-  def handle_event("camera_stopped", _params, socket) do
-    {:noreply, assign(socket, :mode, :idle)}
-  end
-
   def handle_event("image_captured", %{"image" => image}, socket) do
     {:noreply, assign(socket, mode: :preview, preview_image: image)}
   end
 
   def handle_event("image_uploaded", %{"image" => image}, socket) do
     {:noreply, assign(socket, mode: :preview, preview_image: image)}
-  end
-
-  def handle_event("file_selected", _params, socket) do
-    # File handling is done via the JS hook
-    {:noreply, socket}
   end
 
   def handle_event("discard_image", _params, socket) do
