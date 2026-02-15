@@ -322,4 +322,69 @@ defmodule FeedMe.PantryTest do
       refute Item.expiring_soon?(item, 7)
     end
   end
+
+  describe "item_depleted broadcast" do
+    setup do
+      user = AccountsFixtures.user_fixture()
+      household = HouseholdsFixtures.household_fixture(%{}, user)
+      %{user: user, household: household}
+    end
+
+    @tag :depleted
+    test "adjust_quantity broadcasts :item_depleted when non-stock item reaches zero", %{
+      household: household,
+      user: user
+    } do
+      item =
+        PantryFixtures.item_fixture(household, %{
+          always_in_stock: false,
+          quantity: Decimal.new("1")
+        })
+
+      Pantry.subscribe(household.id)
+
+      {:ok, _updated} = Pantry.adjust_quantity(item, Decimal.new("-1"), user)
+
+      assert_receive {:item_depleted, %Item{} = depleted_item}
+      assert Decimal.equal?(depleted_item.quantity, Decimal.new("0"))
+    end
+
+    @tag :depleted
+    test "adjust_quantity does not broadcast :item_depleted for always_in_stock items", %{
+      household: household,
+      user: user
+    } do
+      item =
+        PantryFixtures.item_fixture(household, %{
+          always_in_stock: true,
+          quantity: Decimal.new("1"),
+          restock_threshold: Decimal.new("2")
+        })
+
+      Pantry.subscribe(household.id)
+
+      {:ok, _updated} = Pantry.adjust_quantity(item, Decimal.new("-1"), user)
+
+      assert_receive {:restock_needed, _}
+      refute_receive {:item_depleted, _}
+    end
+
+    @tag :depleted
+    test "adjust_quantity does not broadcast :item_depleted when item stays at zero", %{
+      household: household,
+      user: user
+    } do
+      item =
+        PantryFixtures.item_fixture(household, %{
+          always_in_stock: false,
+          quantity: Decimal.new("0")
+        })
+
+      Pantry.subscribe(household.id)
+
+      {:ok, _updated} = Pantry.adjust_quantity(item, Decimal.new("-1"), user)
+
+      refute_receive {:item_depleted, _}
+    end
+  end
 end

@@ -555,6 +555,12 @@ defmodule FeedMe.Pantry do
         broadcast(:pantry, item.household_id, {:restock_needed, updated_item})
       end
 
+      if not item.always_in_stock and
+           Decimal.compare(quantity_after, Decimal.new(0)) == :eq and
+           Decimal.compare(quantity_before, Decimal.new(0)) == :gt do
+        broadcast(:pantry, item.household_id, {:item_depleted, updated_item})
+      end
+
       updated_item
     end)
   end
