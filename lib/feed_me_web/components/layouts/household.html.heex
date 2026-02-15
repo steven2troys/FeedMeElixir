@@ -102,6 +102,10 @@
       <div class="p-4 md:p-6 pb-20 md:pb-6">
         <.flash_group flash={@flash} />
         {@inner_content}
+        <FeedMeWeb.RestockPrompt.restock_toasts
+          restock_prompts={assigns[:restock_prompts] || %{}}
+          on_pantry_page={assigns[:on_pantry_page] || false}
+        />
       </div>
     </main>
     
