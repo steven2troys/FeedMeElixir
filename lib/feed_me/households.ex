@@ -200,8 +200,13 @@ defmodule FeedMe.Households do
   Creates an invitation.
   """
   def create_invitation(attrs, %User{} = inviter) do
+    params =
+      attrs
+      |> Map.new(fn {k, v} -> {to_string(k), v} end)
+      |> Map.put("invited_by_id", inviter.id)
+
     %Invitation{}
-    |> Invitation.changeset(Map.put(attrs, :invited_by_id, inviter.id))
+    |> Invitation.changeset(params)
     |> Repo.insert()
   end
 
