@@ -11,13 +11,12 @@ defmodule FeedMeWeb.PantryLive.Index do
   def mount(_params, _session, socket) do
     household = socket.assigns.household
 
-    if connected?(socket), do: Pantry.subscribe(household.id)
-
     locations = Pantry.list_storage_locations(household.id)
 
     {:ok,
      socket
      |> assign(:active_tab, :pantry)
+     |> assign(:on_pantry_page, true)
      |> assign(:locations, locations)
      |> assign(:current_location, nil)
      |> assign(:categories, [])
@@ -304,10 +303,6 @@ defmodule FeedMeWeb.PantryLive.Index do
   def handle_info({:item_created, _item}, socket), do: {:noreply, reload_items(socket)}
   def handle_info({:item_updated, _item}, socket), do: {:noreply, reload_items(socket)}
   def handle_info({:item_deleted, _item}, socket), do: {:noreply, reload_items(socket)}
-
-  def handle_info({:restock_needed, item}, socket) do
-    {:noreply, put_flash(socket, :info, "#{item.name} needs restocking!")}
-  end
 
   def handle_info({:storage_location_created, _}, socket) do
     {:noreply,
