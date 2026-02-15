@@ -256,9 +256,7 @@ defmodule FeedMe.Pantry.Sync do
           execute_tool(tool_name, args, household_id, storage_location_id)
         rescue
           e ->
-            Logger.error(
-              "Pantry.Sync: Tool #{tool_name} crashed: #{Exception.message(e)}"
-            )
+            Logger.error("Pantry.Sync: Tool #{tool_name} crashed: #{Exception.message(e)}")
 
             "Error: tool execution failed: #{Exception.message(e)}"
         end

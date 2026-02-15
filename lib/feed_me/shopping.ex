@@ -301,7 +301,9 @@ defmodule FeedMe.Shopping do
 
     case Pantry.get_item(item.pantry_item_id) do
       nil ->
-        Logger.warning("Shopping: pantry item #{item.pantry_item_id} not found for immediate sync")
+        Logger.warning(
+          "Shopping: pantry item #{item.pantry_item_id} not found for immediate sync"
+        )
 
       pantry_item ->
         case Pantry.add_to_item(pantry_item, quantity, nil,
@@ -313,7 +315,9 @@ defmodule FeedMe.Shopping do
             )
 
           {:error, reason} ->
-            Logger.warning("Shopping: immediate sync failed for '#{item.name}': #{inspect(reason)}")
+            Logger.warning(
+              "Shopping: immediate sync failed for '#{item.name}': #{inspect(reason)}"
+            )
         end
     end
   end

@@ -573,7 +573,10 @@ defmodule FeedMe.ShoppingTest do
     end
 
     @tag :item_on_list
-    test "returns true when pantry item is on the list (unchecked)", %{household: household, user: user} do
+    test "returns true when pantry item is on the list (unchecked)", %{
+      household: household,
+      user: user
+    } do
       pantry_item = PantryFixtures.item_fixture(household, %{name: "Milk"})
       list = Shopping.get_or_create_main_list(household.id)
       Shopping.add_from_pantry(list.id, pantry_item, Decimal.new("1"), user)
@@ -590,7 +593,10 @@ defmodule FeedMe.ShoppingTest do
     end
 
     @tag :item_on_list
-    test "returns false when pantry item is on the list but checked", %{household: household, user: user} do
+    test "returns false when pantry item is on the list but checked", %{
+      household: household,
+      user: user
+    } do
       pantry_item = PantryFixtures.item_fixture(household, %{name: "Milk"})
       list = Shopping.get_or_create_main_list(household.id)
       {:ok, item} = Shopping.add_from_pantry(list.id, pantry_item, Decimal.new("1"), user)

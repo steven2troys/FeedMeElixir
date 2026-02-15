@@ -111,9 +111,10 @@ if config_env() == :prod do
     default_model: System.get_env("OPENROUTER_DEFAULT_MODEL", "anthropic/claude-3.5-sonnet")
 
   # Encryption key for BYOK API keys
-  config :feed_me, :encryption_key,
-    System.get_env("ENCRYPTION_KEY") ||
-      raise("environment variable ENCRYPTION_KEY is missing")
+  config :feed_me,
+         :encryption_key,
+         System.get_env("ENCRYPTION_KEY") ||
+           raise("environment variable ENCRYPTION_KEY is missing")
 
   # Resend for transactional email
   config :feed_me, FeedMe.Mailer,

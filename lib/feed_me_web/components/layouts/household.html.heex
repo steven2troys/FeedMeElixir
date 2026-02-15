@@ -110,7 +110,7 @@
     </main>
     
 <!-- Mobile Bottom Tab Bar -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-base-100 border-t border-base-300 safe-area-pb">
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-base-100 border-t border-base-300 safe-area-pb touch-manipulation">
       <div class="flex items-center justify-around px-2 py-1">
         <FeedMeWeb.Layouts.mobile_tab_link
           href={~p"/households/#{@household.id}/pantry"}
@@ -132,6 +132,7 @@
         />
         <button
           phx-click="drawer_toggle"
+          onclick="document.activeElement.blur()"
           class={[
             "flex flex-col items-center justify-center gap-0.5 min-w-[3rem] py-1 text-xs transition-colors",
             assigns[:active_tab] == :chat && "text-primary font-semibold",
@@ -162,17 +163,26 @@
             class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-lg border border-base-300 mb-2"
           >
             <li>
-              <.link navigate={~p"/households/#{@household.id}"}>
+              <.link
+                navigate={~p"/households/#{@household.id}"}
+                onclick="document.activeElement.blur()"
+              >
                 <.icon name="hero-home" class="size-4" /> Dashboard
               </.link>
             </li>
             <li>
-              <.link navigate={~p"/households/#{@household.id}/members"}>
+              <.link
+                navigate={~p"/households/#{@household.id}/members"}
+                onclick="document.activeElement.blur()"
+              >
                 <.icon name="hero-user-group" class="size-4" /> Members
               </.link>
             </li>
             <li>
-              <.link navigate={~p"/households/#{@household.id}/settings"}>
+              <.link
+                navigate={~p"/households/#{@household.id}/settings"}
+                onclick="document.activeElement.blur()"
+              >
                 <.icon name="hero-cog-6-tooth" class="size-4" /> Settings
               </.link>
             </li>

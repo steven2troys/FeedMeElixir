@@ -132,6 +132,7 @@ defmodule FeedMeWeb.Layouts do
         @active && "text-primary font-semibold",
         not @active && "text-base-content/60"
       ]}
+      onclick="document.activeElement.blur()"
     >
       <.icon name={@icon} class="size-6" />
       <span>{@label}</span>

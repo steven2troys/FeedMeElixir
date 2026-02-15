@@ -502,16 +502,14 @@ defmodule FeedMeWeb.PantryLive.Index do
                     <%= if Map.has_key?(@restock_prompts, item.id) do %>
                       <div class="flex items-center gap-2 mt-1">
                         <span class="badge badge-warning badge-sm gap-1">
-                          <.icon name="hero-exclamation-triangle" class="size-3" />
-                          Out of stock
+                          <.icon name="hero-exclamation-triangle" class="size-3" /> Out of stock
                         </span>
                         <button
                           phx-click="add_to_shopping"
                           phx-value-item-id={item.id}
                           class="badge badge-sm badge-info cursor-pointer gap-1"
                         >
-                          <.icon name="hero-shopping-cart" class="size-3" />
-                          Add to list
+                          <.icon name="hero-shopping-cart" class="size-3" /> Add to list
                         </button>
                         <button
                           phx-click="dismiss_restock"
