@@ -210,7 +210,11 @@ defmodule FeedMeWeb.HouseholdLive.Members do
   @impl true
   def handle_info({:invitation_created, _invitation}, socket) do
     {:noreply,
-     assign(socket, :invitations, Households.list_pending_invitations(socket.assigns.household.id))}
+     assign(
+       socket,
+       :invitations,
+       Households.list_pending_invitations(socket.assigns.household.id)
+     )}
   end
 
   @impl true

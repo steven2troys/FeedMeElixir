@@ -174,7 +174,11 @@ defmodule FeedMe.HouseholdsTest do
 
       assert {:ok, %Invitation{} = invitation} =
                Households.create_invitation(
-                 %{email: "invited@example.com", type: :join_household, household_id: household.id},
+                 %{
+                   email: "invited@example.com",
+                   type: :join_household,
+                   household_id: household.id
+                 },
                  user
                )
 
@@ -191,7 +195,11 @@ defmodule FeedMe.HouseholdsTest do
 
       assert {:ok, %Invitation{} = invitation} =
                Households.create_invitation(
-                 %{email: "invited@example.com", type: :new_household, household_id: household.id},
+                 %{
+                   email: "invited@example.com",
+                   type: :new_household,
+                   household_id: household.id
+                 },
                  user
                )
 

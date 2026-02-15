@@ -46,8 +46,8 @@ defmodule FeedMeWeb.ChatDrawer do
         "bg-base-100 border-l border-base-300 shadow-xl",
         "flex flex-col",
         "transition-transform duration-300 ease-in-out",
-        @drawer_open && "translate-x-0",
-        not @drawer_open && "translate-x-full"
+        @drawer_open && "translate-x-0 pointer-events-auto",
+        not @drawer_open && "translate-x-full pointer-events-none"
       ]}
     >
       <%!-- Header --%>

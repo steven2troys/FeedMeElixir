@@ -157,7 +157,10 @@ defmodule FeedMeWeb.InvitationLive.Accept do
               </p>
               <form phx-submit="accept" phx-change="update_household_name" class="mb-4">
                 <div class="text-left mb-4">
-                  <label for="household_name" class="block text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">
+                  <label
+                    for="household_name"
+                    class="block text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1"
+                  >
                     Household Name
                   </label>
                   <input

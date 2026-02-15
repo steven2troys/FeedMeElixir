@@ -32,7 +32,10 @@ defmodule FeedMeWeb.HouseholdLive.InviteComponent do
           field={@form[:type]}
           type="select"
           label="Invitation Type"
-          options={[{"Join my household", "join_household"}, {"Start their own household", "new_household"}]}
+          options={[
+            {"Join my household", "join_household"},
+            {"Start their own household", "new_household"}
+          ]}
         />
         <:actions>
           <.button phx-disable-with="Sending...">Send Invitation</.button>
@@ -50,7 +53,9 @@ defmodule FeedMeWeb.HouseholdLive.InviteComponent do
      |> assign_new(:invitation_type, fn -> "join_household" end)
      |> assign_new(:form, fn ->
        to_form(
-         Invitation.changeset(%Invitation{household_id: assigns.household.id}, %{type: :join_household})
+         Invitation.changeset(%Invitation{household_id: assigns.household.id}, %{
+           type: :join_household
+         })
        )
      end)}
   end

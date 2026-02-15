@@ -59,4 +59,6 @@ config :feed_me, :openrouter,
   default_model: "anthropic/claude-3.5-sonnet"
 
 # Encryption key for API keys
-config :feed_me, :encryption_key, System.get_env("ENCRYPTION_KEY") || "test-encryption-key-32bytes!!"
+config :feed_me,
+       :encryption_key,
+       System.get_env("ENCRYPTION_KEY") || "test-encryption-key-32bytes!!"
