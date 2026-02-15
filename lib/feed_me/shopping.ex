@@ -250,15 +250,26 @@ defmodule FeedMe.Shopping do
 
           if location_id do
             if was_unchecked do
-              Sync.queue_item(item.shopping_list.household_id, location_id, %{
-                shopping_item_id: item.id,
-                name: item.name,
-                quantity: item.quantity,
-                unit: item.unit,
-                pantry_item_id: item.pantry_item_id
-              })
+              if item.pantry_item_id do
+                # Pre-linked item: sync immediately (no AI needed)
+                sync_to_pantry_immediately(item)
+              else
+                # Unlinked item: queue for AI-powered matching
+                Sync.queue_item(item.shopping_list.household_id, location_id, %{
+                  shopping_item_id: item.id,
+                  name: item.name,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                  pantry_item_id: item.pantry_item_id
+                })
+              end
             else
-              Sync.dequeue_item(item.shopping_list.household_id, location_id, item.id)
+              if item.pantry_item_id do
+                # Reverse immediate sync
+                unsync_from_pantry(item)
+              else
+                Sync.dequeue_item(item.shopping_list.household_id, location_id, item.id)
+              end
             end
           end
 
@@ -269,6 +280,56 @@ defmodule FeedMe.Shopping do
           :ok
       end
     end)
+  end
+
+  defp sync_to_pantry_immediately(%Item{} = item) do
+    require Logger
+    alias FeedMe.Pantry
+
+    quantity = item.quantity || Decimal.new("1")
+
+    case Pantry.get_item(item.pantry_item_id) do
+      nil ->
+        Logger.warning("Shopping: pantry item #{item.pantry_item_id} not found for immediate sync")
+
+      pantry_item ->
+        case Pantry.add_to_item(pantry_item, quantity, nil,
+               reason: "Auto-added from shopping list"
+             ) do
+          {:ok, updated} ->
+            Logger.info(
+              "Shopping: immediate sync '#{item.name}' +#{quantity} → #{updated.quantity}"
+            )
+
+          {:error, reason} ->
+            Logger.warning("Shopping: immediate sync failed for '#{item.name}': #{inspect(reason)}")
+        end
+    end
+  end
+
+  defp unsync_from_pantry(%Item{} = item) do
+    require Logger
+    alias FeedMe.Pantry
+
+    quantity = item.quantity || Decimal.new("1")
+
+    case Pantry.get_item(item.pantry_item_id) do
+      nil ->
+        Logger.warning("Shopping: pantry item #{item.pantry_item_id} not found for unsync")
+
+      pantry_item ->
+        case Pantry.remove_from_item(pantry_item, quantity, nil,
+               reason: "Reversed: unchecked shopping item"
+             ) do
+          {:ok, updated} ->
+            Logger.info(
+              "Shopping: reversed sync '#{item.name}' -#{quantity} → #{updated.quantity}"
+            )
+
+          {:error, reason} ->
+            Logger.warning("Shopping: unsync failed for '#{item.name}': #{inspect(reason)}")
+        end
+    end
   end
 
   defp maybe_link_to_pantry_item(attrs) do

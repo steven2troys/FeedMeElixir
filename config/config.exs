@@ -94,7 +94,7 @@ config :feed_me, :encryption_key, nil
 
 # Pantry Sync (AI-powered batch pantry updates from shopping lists)
 config :feed_me, FeedMe.Pantry.Sync,
-  debounce_ms: :timer.minutes(10),
+  debounce_ms: :timer.seconds(60),
   enabled: true
 
 # Timezone database
