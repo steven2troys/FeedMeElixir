@@ -14,6 +14,7 @@ defmodule FeedMeWeb.InvitationLive.Accept do
          socket
          |> assign(:invitation, nil)
          |> assign(:error, :not_found)
+         |> assign(:household_name, "")
          |> assign(:page_title, "Invalid Invitation")}
 
       %Invitation{} = invitation ->
@@ -23,6 +24,7 @@ defmodule FeedMeWeb.InvitationLive.Accept do
              socket
              |> assign(:invitation, invitation)
              |> assign(:error, :already_accepted)
+             |> assign(:household_name, "")
              |> assign(:page_title, "Invitation Already Accepted")}
 
           Invitation.expired?(invitation) ->
@@ -30,13 +32,15 @@ defmodule FeedMeWeb.InvitationLive.Accept do
              socket
              |> assign(:invitation, invitation)
              |> assign(:error, :expired)
+             |> assign(:household_name, "")
              |> assign(:page_title, "Invitation Expired")}
 
-          Households.member?(user, invitation.household_id) ->
+          invitation.type == :join_household and Households.member?(user, invitation.household_id) ->
             {:ok,
              socket
              |> assign(:invitation, invitation)
              |> assign(:error, :already_member)
+             |> assign(:household_name, "")
              |> assign(:page_title, "Already a Member")}
 
           true ->
@@ -44,22 +48,36 @@ defmodule FeedMeWeb.InvitationLive.Accept do
              socket
              |> assign(:invitation, invitation)
              |> assign(:error, nil)
+             |> assign(:household_name, "")
              |> assign(:page_title, "Accept Invitation")}
         end
     end
   end
 
   @impl true
-  def handle_event("accept", _params, socket) do
+  def handle_event("accept", params, socket) do
     user = socket.assigns.current_scope.user
     invitation = socket.assigns.invitation
 
-    case Households.accept_invitation(invitation, user) do
-      {:ok, _membership} ->
+    opts =
+      if invitation.type == :new_household do
+        [household_name: Map.get(params, "household_name", "")]
+      else
+        []
+      end
+
+    case Households.accept_invitation(invitation, user, opts) do
+      {:ok, _membership} when invitation.type == :join_household ->
         {:noreply,
          socket
          |> put_flash(:info, "You've joined #{invitation.household.name}!")
          |> push_navigate(to: ~p"/households/#{invitation.household_id}")}
+
+      {:ok, household} when invitation.type == :new_household ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Your household \"#{household.name}\" has been created!")
+         |> push_navigate(to: ~p"/households/#{household.id}")}
 
       {:error, reason} ->
         {:noreply,
@@ -67,6 +85,10 @@ defmodule FeedMeWeb.InvitationLive.Accept do
          |> assign(:error, reason)
          |> put_flash(:error, error_message(reason))}
     end
+  end
+
+  def handle_event("update_household_name", %{"household_name" => name}, socket) do
+    {:noreply, assign(socket, :household_name, name)}
   end
 
   defp error_message(:expired), do: "This invitation has expired."
@@ -129,16 +151,43 @@ defmodule FeedMeWeb.InvitationLive.Accept do
               <.icon name="hero-envelope" class="w-16 h-16 mx-auto" />
             </div>
             <h2 class="text-xl font-semibold mb-2">You're Invited!</h2>
-            <p class="text-zinc-500 dark:text-zinc-400 mb-6">
-              You've been invited to join <strong>{@invitation.household.name}</strong>
-              as a <strong><%= @invitation.role %></strong>.
-            </p>
-            <div class="flex gap-3 justify-center">
-              <.button phx-click="accept" variant="primary">Accept Invitation</.button>
-              <.link navigate={~p"/"} class="btn btn-ghost">
-                Decline
-              </.link>
-            </div>
+            <%= if @invitation.type == :new_household do %>
+              <p class="text-zinc-500 dark:text-zinc-400 mb-6">
+                You've been invited to start your own household on FeedMe.
+              </p>
+              <form phx-submit="accept" phx-change="update_household_name" class="mb-4">
+                <div class="text-left mb-4">
+                  <label for="household_name" class="block text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-1">
+                    Household Name
+                  </label>
+                  <input
+                    type="text"
+                    id="household_name"
+                    name="household_name"
+                    value={@household_name}
+                    required
+                    class="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-brand"
+                    placeholder="e.g. The Smith Family"
+                  />
+                </div>
+                <div class="flex gap-3 justify-center">
+                  <.button type="submit" variant="primary">Create Household</.button>
+                  <.link navigate={~p"/"} class="btn btn-ghost">
+                    Decline
+                  </.link>
+                </div>
+              </form>
+            <% else %>
+              <p class="text-zinc-500 dark:text-zinc-400 mb-6">
+                You've been invited to join <strong>{@invitation.household.name}</strong>.
+              </p>
+              <div class="flex gap-3 justify-center">
+                <.button phx-click="accept" variant="primary">Accept Invitation</.button>
+                <.link navigate={~p"/"} class="btn btn-ghost">
+                  Decline
+                </.link>
+              </div>
+            <% end %>
         <% end %>
       </div>
     </div>

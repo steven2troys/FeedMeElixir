@@ -8,6 +8,7 @@ defmodule FeedMe.Households.Invitation do
     field :email, :string
     field :token, :string
     field :role, Ecto.Enum, values: [:admin, :member], default: :member
+    field :type, Ecto.Enum, values: [:join_household, :new_household], default: :join_household
     field :expires_at, :utc_datetime
     field :accepted_at, :utc_datetime
 
@@ -22,16 +23,24 @@ defmodule FeedMe.Households.Invitation do
   """
   def changeset(invitation, attrs) do
     invitation
-    |> cast(attrs, [:email, :role, :household_id, :invited_by_id])
-    |> validate_required([:email, :role, :household_id])
+    |> cast(attrs, [:email, :type, :household_id, :invited_by_id])
+    |> validate_required([:email, :type, :household_id])
     |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
       message: "must have the @ sign and no spaces"
     )
     |> validate_length(:email, max: 160)
+    |> set_role_from_type()
     |> foreign_key_constraint(:household_id)
     |> foreign_key_constraint(:invited_by_id)
     |> generate_token()
     |> set_expiration()
+  end
+
+  defp set_role_from_type(changeset) do
+    case get_field(changeset, :type) do
+      :new_household -> put_change(changeset, :role, :admin)
+      _ -> put_change(changeset, :role, :member)
+    end
   end
 
   defp generate_token(changeset) do

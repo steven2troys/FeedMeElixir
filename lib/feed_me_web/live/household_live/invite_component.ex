@@ -12,7 +12,11 @@ defmodule FeedMeWeb.HouseholdLive.InviteComponent do
       <.header>
         {@title}
         <:subtitle>
-          Send an invitation to join {@household.name}
+          <%= if @invitation_type == "new_household" do %>
+            Send an invitation to start their own household
+          <% else %>
+            Send an invitation to join {@household.name}
+          <% end %>
         </:subtitle>
       </.header>
 
@@ -25,10 +29,10 @@ defmodule FeedMeWeb.HouseholdLive.InviteComponent do
       >
         <.input field={@form[:email]} type="email" label="Email Address" />
         <.input
-          field={@form[:role]}
+          field={@form[:type]}
           type="select"
-          label="Role"
-          options={[{"Member", "member"}, {"Admin", "admin"}]}
+          label="Invitation Type"
+          options={[{"Join my household", "join_household"}, {"Start their own household", "new_household"}]}
         />
         <:actions>
           <.button phx-disable-with="Sending...">Send Invitation</.button>
@@ -43,9 +47,10 @@ defmodule FeedMeWeb.HouseholdLive.InviteComponent do
     {:ok,
      socket
      |> assign(assigns)
+     |> assign_new(:invitation_type, fn -> "join_household" end)
      |> assign_new(:form, fn ->
        to_form(
-         Invitation.changeset(%Invitation{household_id: assigns.household.id}, %{role: :member})
+         Invitation.changeset(%Invitation{household_id: assigns.household.id}, %{type: :join_household})
        )
      end)}
   end
@@ -57,7 +62,9 @@ defmodule FeedMeWeb.HouseholdLive.InviteComponent do
       |> Invitation.changeset(invitation_params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, form: to_form(changeset))}
+    invitation_type = Map.get(invitation_params, "type", "join_household")
+
+    {:noreply, assign(socket, form: to_form(changeset), invitation_type: invitation_type)}
   end
 
   def handle_event("save", %{"invitation" => invitation_params}, socket) do
@@ -70,12 +77,20 @@ defmodule FeedMeWeb.HouseholdLive.InviteComponent do
         invitation_url = url(socket, ~p"/invitations/#{invitation.token}")
         inviter_name = socket.assigns.current_user.name || socket.assigns.current_user.email
 
-        UserNotifier.deliver_invitation_email(
-          invitation.email,
-          invitation_url,
-          socket.assigns.household.name,
-          inviter_name
-        )
+        if invitation.type == :new_household do
+          UserNotifier.deliver_new_household_invitation_email(
+            invitation.email,
+            invitation_url,
+            inviter_name
+          )
+        else
+          UserNotifier.deliver_invitation_email(
+            invitation.email,
+            invitation_url,
+            socket.assigns.household.name,
+            inviter_name
+          )
+        end
 
         send(self(), {:invitation_created, invitation})
 

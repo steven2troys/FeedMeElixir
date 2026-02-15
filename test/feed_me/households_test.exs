@@ -168,23 +168,39 @@ defmodule FeedMe.HouseholdsTest do
       assert found.id == invitation.id
     end
 
-    test "create_invitation/2 creates an invitation" do
+    test "create_invitation/2 creates a join_household invitation" do
       user = AccountsFixtures.user_fixture()
       household = HouseholdsFixtures.household_fixture(%{}, user)
 
       assert {:ok, %Invitation{} = invitation} =
                Households.create_invitation(
-                 %{email: "invited@example.com", role: :member, household_id: household.id},
+                 %{email: "invited@example.com", type: :join_household, household_id: household.id},
                  user
                )
 
       assert invitation.email == "invited@example.com"
+      assert invitation.type == :join_household
       assert invitation.role == :member
       assert invitation.token != nil
       assert invitation.expires_at != nil
     end
 
-    test "accept_invitation/2 creates a membership" do
+    test "create_invitation/2 creates a new_household invitation with admin role" do
+      user = AccountsFixtures.user_fixture()
+      household = HouseholdsFixtures.household_fixture(%{}, user)
+
+      assert {:ok, %Invitation{} = invitation} =
+               Households.create_invitation(
+                 %{email: "invited@example.com", type: :new_household, household_id: household.id},
+                 user
+               )
+
+      assert invitation.email == "invited@example.com"
+      assert invitation.type == :new_household
+      assert invitation.role == :admin
+    end
+
+    test "accept_invitation/3 for join_household creates a membership" do
       admin = AccountsFixtures.user_fixture()
       household = HouseholdsFixtures.household_fixture(%{}, admin)
       new_user = AccountsFixtures.user_fixture()
@@ -200,7 +216,27 @@ defmodule FeedMe.HouseholdsTest do
       assert Households.member?(new_user, household.id)
     end
 
-    test "accept_invitation/2 returns error for expired invitation" do
+    test "accept_invitation/3 for new_household creates a new household" do
+      admin = AccountsFixtures.user_fixture()
+      household = HouseholdsFixtures.household_fixture(%{}, admin)
+      new_user = AccountsFixtures.user_fixture()
+
+      invitation =
+        HouseholdsFixtures.invitation_fixture(household, admin, %{
+          email: new_user.email,
+          type: :new_household
+        })
+
+      assert {:ok, %Household{} = new_household} =
+               Households.accept_invitation(invitation, new_user, household_name: "New Home")
+
+      assert new_household.name == "New Home"
+      assert Households.admin?(new_user, new_household.id)
+      # The new user should NOT be a member of the original household
+      refute Households.member?(new_user, household.id)
+    end
+
+    test "accept_invitation/3 returns error for expired invitation" do
       admin = AccountsFixtures.user_fixture()
       household = HouseholdsFixtures.household_fixture(%{}, admin)
       new_user = AccountsFixtures.user_fixture()
@@ -216,7 +252,7 @@ defmodule FeedMe.HouseholdsTest do
       assert {:error, :expired} = Households.accept_invitation(invitation, new_user)
     end
 
-    test "accept_invitation/2 returns error if already member" do
+    test "accept_invitation/3 returns error if already member for join_household" do
       user = AccountsFixtures.user_fixture()
       household = HouseholdsFixtures.household_fixture(%{}, user)
       invitation = HouseholdsFixtures.invitation_fixture(household, user)

@@ -31,7 +31,7 @@ defmodule FeedMe.HouseholdsFixtures do
       attrs
       |> Enum.into(%{
         email: unique_email(),
-        role: :member,
+        type: :join_household,
         household_id: household.id
       })
       |> FeedMe.Households.create_invitation(inviter)

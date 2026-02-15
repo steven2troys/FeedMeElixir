@@ -212,8 +212,12 @@ defmodule FeedMe.Households do
 
   @doc """
   Accepts an invitation and creates a membership.
+
+  For `join_household` invitations, the user joins the existing household as a member.
+  For `new_household` invitations, a new household is created and the user becomes its admin.
+  Accepts an optional `opts` keyword list — `:household_name` is required for `new_household` type.
   """
-  def accept_invitation(%Invitation{} = invitation, %User{} = user) do
+  def accept_invitation(%Invitation{} = invitation, %User{} = user, opts \\ []) do
     cond do
       Invitation.expired?(invitation) ->
         {:error, :expired}
@@ -221,27 +225,48 @@ defmodule FeedMe.Households do
       Invitation.accepted?(invitation) ->
         {:error, :already_accepted}
 
-      member?(user, invitation.household_id) ->
+      invitation.type == :join_household and member?(user, invitation.household_id) ->
         {:error, :already_member}
 
+      invitation.type == :new_household ->
+        household_name = Keyword.get(opts, :household_name, "")
+        accept_new_household_invitation(invitation, user, household_name)
+
       true ->
-        Repo.transaction(fn ->
-          with {:ok, _invitation} <-
-                 invitation |> Invitation.accept_changeset() |> Repo.update(),
-               {:ok, membership} <-
-                 %Membership{}
-                 |> Membership.changeset(%{
-                   user_id: user.id,
-                   household_id: invitation.household_id,
-                   role: invitation.role
-                 })
-                 |> Repo.insert() do
-            membership
-          else
-            {:error, changeset} -> Repo.rollback(changeset)
-          end
-        end)
+        accept_join_household_invitation(invitation, user)
     end
+  end
+
+  defp accept_join_household_invitation(invitation, user) do
+    Repo.transaction(fn ->
+      with {:ok, _invitation} <-
+             invitation |> Invitation.accept_changeset() |> Repo.update(),
+           {:ok, membership} <-
+             %Membership{}
+             |> Membership.changeset(%{
+               user_id: user.id,
+               household_id: invitation.household_id,
+               role: :member
+             })
+             |> Repo.insert() do
+        membership
+      else
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  defp accept_new_household_invitation(invitation, user, household_name) do
+    Repo.transaction(fn ->
+      with {:ok, _invitation} <-
+             invitation |> Invitation.accept_changeset() |> Repo.update(),
+           {:ok, household} <-
+             create_household(%{name: household_name}, user) do
+        household
+      else
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
   end
 
   @doc """
