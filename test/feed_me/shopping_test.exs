@@ -565,6 +565,41 @@ defmodule FeedMe.ShoppingTest do
     end
   end
 
+  describe "item_on_list?/2" do
+    setup do
+      user = AccountsFixtures.user_fixture()
+      household = HouseholdsFixtures.household_fixture(%{}, user)
+      %{user: user, household: household}
+    end
+
+    @tag :item_on_list
+    test "returns true when pantry item is on the list (unchecked)", %{household: household, user: user} do
+      pantry_item = PantryFixtures.item_fixture(household, %{name: "Milk"})
+      list = Shopping.get_or_create_main_list(household.id)
+      Shopping.add_from_pantry(list.id, pantry_item, Decimal.new("1"), user)
+
+      assert Shopping.item_on_list?(list.id, pantry_item.id)
+    end
+
+    @tag :item_on_list
+    test "returns false when pantry item is not on the list", %{household: household} do
+      pantry_item = PantryFixtures.item_fixture(household, %{name: "Milk"})
+      list = Shopping.get_or_create_main_list(household.id)
+
+      refute Shopping.item_on_list?(list.id, pantry_item.id)
+    end
+
+    @tag :item_on_list
+    test "returns false when pantry item is on the list but checked", %{household: household, user: user} do
+      pantry_item = PantryFixtures.item_fixture(household, %{name: "Milk"})
+      list = Shopping.get_or_create_main_list(household.id)
+      {:ok, item} = Shopping.add_from_pantry(list.id, pantry_item, Decimal.new("1"), user)
+      Shopping.toggle_item_checked(item, user.id)
+
+      refute Shopping.item_on_list?(list.id, pantry_item.id)
+    end
+  end
+
   describe "pre-linking pantry items" do
     setup do
       user = AccountsFixtures.user_fixture()

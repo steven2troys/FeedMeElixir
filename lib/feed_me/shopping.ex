@@ -165,6 +165,17 @@ defmodule FeedMe.Shopping do
   end
 
   @doc """
+  Checks if a pantry item is already on a shopping list (unchecked only).
+  """
+  def item_on_list?(shopping_list_id, pantry_item_id) do
+    Item
+    |> where([i], i.shopping_list_id == ^shopping_list_id)
+    |> where([i], i.pantry_item_id == ^pantry_item_id)
+    |> where([i], i.checked == false)
+    |> Repo.exists?()
+  end
+
+  @doc """
   Gets an item by ID.
   """
   def get_item(id),
