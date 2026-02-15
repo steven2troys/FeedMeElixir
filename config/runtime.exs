@@ -122,5 +122,5 @@ if config_env() == :prod do
 
   # WebSocket origin checking for LiveView
   config :feed_me, FeedMeWeb.Endpoint,
-    check_origin: ["https://2troys.com", "https://www.2troys.com"]
+    check_origin: ["https://2troys.com", "https://www.2troys.com", "https://feed-me-app.fly.dev"]
 end
