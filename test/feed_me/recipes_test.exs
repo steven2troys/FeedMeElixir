@@ -365,6 +365,122 @@ defmodule FeedMe.RecipesTest do
     end
   end
 
+  describe "link_ingredients_to_pantry/2" do
+    setup do
+      user = AccountsFixtures.user_fixture()
+      household = HouseholdsFixtures.household_fixture(%{}, user)
+      recipe = RecipesFixtures.recipe_fixture(household)
+      %{user: user, household: household, recipe: recipe}
+    end
+
+    test "links ingredient to existing pantry item by name", %{
+      recipe: recipe,
+      household: household
+    } do
+      pantry_item = PantryFixtures.item_fixture(household, %{name: "Chicken", quantity: Decimal.new("5")})
+
+      RecipesFixtures.ingredient_fixture(recipe, %{name: "Chicken", quantity: Decimal.new("2")})
+
+      {:ok, stats} = Recipes.link_ingredients_to_pantry(recipe.id, household.id)
+      assert stats.linked == 1
+      assert stats.created == 0
+
+      recipe = Recipes.get_recipe(recipe.id, household.id)
+      [ingredient] = recipe.ingredients
+      assert ingredient.pantry_item_id == pantry_item.id
+    end
+
+    test "matches pantry items case-insensitively", %{
+      recipe: recipe,
+      household: household
+    } do
+      pantry_item = PantryFixtures.item_fixture(household, %{name: "Brown Rice", quantity: Decimal.new("3")})
+
+      RecipesFixtures.ingredient_fixture(recipe, %{name: "brown rice", quantity: Decimal.new("1")})
+
+      {:ok, stats} = Recipes.link_ingredients_to_pantry(recipe.id, household.id)
+      assert stats.linked == 1
+
+      recipe = Recipes.get_recipe(recipe.id, household.id)
+      [ingredient] = recipe.ingredients
+      assert ingredient.pantry_item_id == pantry_item.id
+    end
+
+    test "creates new pantry item with qty 0 when no match exists", %{
+      recipe: recipe,
+      household: household
+    } do
+      RecipesFixtures.ingredient_fixture(recipe, %{
+        name: "Saffron",
+        quantity: Decimal.new("1"),
+        unit: "pinch"
+      })
+
+      {:ok, stats} = Recipes.link_ingredients_to_pantry(recipe.id, household.id)
+      assert stats.linked == 0
+      assert stats.created == 1
+
+      recipe = Recipes.get_recipe(recipe.id, household.id)
+      [ingredient] = recipe.ingredients
+      assert ingredient.pantry_item_id != nil
+
+      pantry_item = FeedMe.Pantry.get_item(ingredient.pantry_item_id)
+      assert pantry_item.name == "Saffron"
+      assert Decimal.equal?(pantry_item.quantity, Decimal.new("0"))
+    end
+
+    test "skips ingredients already linked to pantry", %{
+      recipe: recipe,
+      household: household
+    } do
+      pantry_item = PantryFixtures.item_fixture(household, %{name: "Salt"})
+
+      RecipesFixtures.ingredient_fixture(recipe, %{
+        name: "Salt",
+        pantry_item_id: pantry_item.id,
+        quantity: Decimal.new("1")
+      })
+
+      {:ok, stats} = Recipes.link_ingredients_to_pantry(recipe.id, household.id)
+      assert stats.linked == 0
+      assert stats.created == 0
+      assert stats.skipped == 1
+    end
+
+    test "handles mix of linked, matched, and new ingredients", %{
+      recipe: recipe,
+      household: household
+    } do
+      existing_pantry = PantryFixtures.item_fixture(household, %{name: "Flour"})
+      already_linked = PantryFixtures.item_fixture(household, %{name: "Sugar"})
+
+      # Already linked
+      RecipesFixtures.ingredient_fixture(recipe, %{
+        name: "Sugar",
+        pantry_item_id: already_linked.id,
+        quantity: Decimal.new("1")
+      })
+
+      # Will match existing pantry item
+      RecipesFixtures.ingredient_fixture(recipe, %{name: "Flour", quantity: Decimal.new("2")})
+
+      # Will create new pantry item
+      RecipesFixtures.ingredient_fixture(recipe, %{name: "Vanilla Extract", quantity: Decimal.new("1")})
+
+      {:ok, stats} = Recipes.link_ingredients_to_pantry(recipe.id, household.id)
+      assert stats.skipped == 1
+      assert stats.linked == 1
+      assert stats.created == 1
+
+      recipe = Recipes.get_recipe(recipe.id, household.id)
+      flour = Enum.find(recipe.ingredients, &(&1.name == "Flour"))
+      assert flour.pantry_item_id == existing_pantry.id
+
+      vanilla = Enum.find(recipe.ingredients, &(&1.name == "Vanilla Extract"))
+      assert vanilla.pantry_item_id != nil
+    end
+  end
+
   describe "add_missing_to_list" do
     setup do
       user = AccountsFixtures.user_fixture()

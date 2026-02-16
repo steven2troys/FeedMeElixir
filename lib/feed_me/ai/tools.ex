@@ -738,6 +738,9 @@ defmodule FeedMe.AI.Tools do
           Recipes.bulk_create_ingredients(recipe.id, ingredient_list)
         end
 
+        # Auto-link ingredients to pantry items (find or create)
+        Recipes.link_ingredients_to_pantry(recipe.id, household_id)
+
         # Build confirmation message
         ingredient_count = length(ingredients)
         time_info = format_time_info(args["prep_time_minutes"], args["cook_time_minutes"])

@@ -346,6 +346,53 @@ defmodule FeedMe.Recipes do
   end
 
   @doc """
+  Links unlinked recipe ingredients to pantry items.
+
+  For each ingredient without a pantry_item_id:
+  - Finds a matching pantry item by name (case-insensitive)
+  - Or creates a new pantry item with quantity 0
+
+  Returns `{:ok, %{linked: n, created: n, skipped: n}}`.
+  """
+  def link_ingredients_to_pantry(recipe_id, household_id) do
+    ingredients =
+      Ingredient
+      |> where([i], i.recipe_id == ^recipe_id)
+      |> Repo.all()
+
+    storage_location = Pantry.get_pantry_location(household_id) ||
+      Pantry.get_default_storage_location(household_id)
+
+    stats =
+      Enum.reduce(ingredients, %{linked: 0, created: 0, skipped: 0}, fn ingredient, acc ->
+        if ingredient.pantry_item_id do
+          %{acc | skipped: acc.skipped + 1}
+        else
+          case Pantry.find_item_by_name(ingredient.name, household_id) do
+            %{id: pantry_item_id} ->
+              update_ingredient(ingredient, %{pantry_item_id: pantry_item_id})
+              %{acc | linked: acc.linked + 1}
+
+            nil ->
+              {:ok, pantry_item} =
+                Pantry.create_item(%{
+                  name: ingredient.name,
+                  quantity: Decimal.new("0"),
+                  unit: ingredient.unit,
+                  household_id: household_id,
+                  storage_location_id: storage_location.id
+                })
+
+              update_ingredient(ingredient, %{pantry_item_id: pantry_item.id})
+              %{acc | created: acc.created + 1}
+          end
+        end
+      end)
+
+    {:ok, stats}
+  end
+
+  @doc """
   Creates a cooking log.
   """
   def create_cooking_log(attrs) do
