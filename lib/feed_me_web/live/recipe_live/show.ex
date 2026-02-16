@@ -666,6 +666,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
           <.input
             name="rating"
             type="select"
+            value=""
             label="Rating"
             prompt="Rate this meal..."
             options={[
@@ -679,6 +680,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
           <.input
             name="notes"
             type="textarea"
+            value=""
             label="Notes (optional)"
             placeholder="How did it turn out?"
           />
