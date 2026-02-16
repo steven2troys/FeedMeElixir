@@ -1,6 +1,9 @@
 defmodule FeedMe.Uploads do
   @moduledoc """
   Handles saving and deleting uploaded files (base64 data URLs → local files).
+
+  In production, files are stored on a persistent Fly volume at `/app/uploads`.
+  In dev/test, files are stored in `priv/static/uploads`.
   """
 
   @doc """
@@ -25,12 +28,20 @@ defmodule FeedMe.Uploads do
   Deletes a file at the given URL path (only `/uploads/` paths).
   """
   def delete_file("/uploads/" <> _ = url_path) do
-    path = Path.join(static_dir(), url_path)
+    # Try the configured upload dir first, then fall back to static dir
+    path = Path.join(upload_dir(), Path.relative_to(url_path, "/uploads"))
 
     if File.exists?(path) do
       File.rm(path)
     else
-      :ok
+      # Fall back to legacy location (priv/static/uploads)
+      legacy_path = Path.join(static_dir(), url_path)
+
+      if File.exists?(legacy_path) do
+        File.rm(legacy_path)
+      else
+        :ok
+      end
     end
   end
 
@@ -50,7 +61,8 @@ defmodule FeedMe.Uploads do
   defp decode_data_url(_), do: {:error, :invalid_data_url}
 
   defp upload_dir do
-    Path.join(static_dir(), "uploads")
+    Application.get_env(:feed_me, :upload_dir) ||
+      Path.join(static_dir(), "uploads")
   end
 
   defp static_dir do

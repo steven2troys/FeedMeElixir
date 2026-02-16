@@ -24,6 +24,10 @@ primary_region = 'sjc'
   min_machines_running = 1
   processes = ['app']
 
+[[mounts]]
+  source = 'uploads_data'
+  destination = '/app/uploads'
+
 [[vm]]
   memory = '1gb'
   cpus = 1

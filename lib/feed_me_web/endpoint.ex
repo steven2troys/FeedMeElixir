@@ -19,6 +19,13 @@ defmodule FeedMeWeb.Endpoint do
     websocket: true,
     longpoll: false
 
+  # Serve uploads from persistent volume in production (/app/uploads).
+  # In dev, this path won't exist and requests fall through to the next Plug.Static.
+  plug Plug.Static,
+    at: "/uploads",
+    from: "/app/uploads",
+    gzip: false
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),

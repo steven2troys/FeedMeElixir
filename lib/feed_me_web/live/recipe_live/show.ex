@@ -145,6 +145,22 @@ defmodule FeedMeWeb.RecipeLive.Show do
      |> put_flash(:info, message)}
   end
 
+  def handle_event("delete_recipe", _params, socket) do
+    recipe = socket.assigns.recipe
+
+    # Clean up photo files before deleting the recipe
+    Enum.each(recipe.photos, fn photo ->
+      Uploads.delete_file(photo.url)
+    end)
+
+    {:ok, _} = Recipes.delete_recipe(recipe)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Recipe \"#{recipe.title}\" deleted")
+     |> push_navigate(to: ~p"/households/#{socket.assigns.household.id}/recipes")}
+  end
+
   def handle_event("toggle_photo_actions", _params, socket) do
     {:noreply, assign(socket, :show_photo_actions, !socket.assigns.show_photo_actions)}
   end
@@ -363,6 +379,13 @@ defmodule FeedMeWeb.RecipeLive.Show do
           <.link patch={~p"/households/#{@household.id}/recipes/#{@recipe.id}/edit"}>
             <.button>Edit</.button>
           </.link>
+          <button
+            phx-click="delete_recipe"
+            data-confirm={"Delete \"#{@recipe.title}\"? This cannot be undone."}
+            class="btn btn-ghost btn-sm text-error"
+          >
+            <.icon name="hero-trash" class="size-5" />
+          </button>
         </:actions>
       </.header>
 

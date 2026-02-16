@@ -121,6 +121,9 @@ if config_env() == :prod do
     adapter: Swoosh.Adapters.Resend,
     api_key: System.fetch_env!("RESEND_API_KEY")
 
+  # Persistent upload directory (Fly volume mount)
+  config :feed_me, :upload_dir, "/app/uploads"
+
   # WebSocket origin checking for LiveView
   config :feed_me, FeedMeWeb.Endpoint,
     check_origin: ["https://2troys.com", "https://www.2troys.com", "https://feed-me-app.fly.dev"]
