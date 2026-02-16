@@ -3,8 +3,6 @@ defmodule FeedMe.Uploads do
   Handles saving and deleting uploaded files (base64 data URLs → local files).
   """
 
-  @upload_dir "priv/static/uploads"
-
   @doc """
   Saves a base64 data URL as a recipe photo file.
 
@@ -13,7 +11,7 @@ defmodule FeedMe.Uploads do
   def save_recipe_photo(base64_data_url, recipe_id) do
     with {:ok, binary, ext} <- decode_data_url(base64_data_url) do
       filename = "#{Ecto.UUID.generate()}.#{ext}"
-      dir = Path.join([@upload_dir, "recipes", recipe_id])
+      dir = Path.join([upload_dir(), "recipes", recipe_id])
       path = Path.join(dir, filename)
 
       File.mkdir_p!(dir)
@@ -27,7 +25,7 @@ defmodule FeedMe.Uploads do
   Deletes a file at the given URL path (only `/uploads/` paths).
   """
   def delete_file("/uploads/" <> _ = url_path) do
-    path = Path.join("priv/static", url_path)
+    path = Path.join(static_dir(), url_path)
 
     if File.exists?(path) do
       File.rm(path)
@@ -50,6 +48,14 @@ defmodule FeedMe.Uploads do
   end
 
   defp decode_data_url(_), do: {:error, :invalid_data_url}
+
+  defp upload_dir do
+    Path.join(static_dir(), "uploads")
+  end
+
+  defp static_dir do
+    Application.app_dir(:feed_me, "priv/static")
+  end
 
   defp mime_to_ext(meta) do
     cond do
