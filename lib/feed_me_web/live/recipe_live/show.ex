@@ -685,7 +685,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
             placeholder="How did it turn out?"
           />
           <div class="flex gap-2 justify-end">
-            <%= if need_items != [] do %>
+            <%= if need_items != [] || untracked_items != [] do %>
               <button
                 type="button"
                 phx-click="cook_add_missing"
