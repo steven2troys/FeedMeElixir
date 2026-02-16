@@ -49,8 +49,13 @@ defmodule FeedMeWeb.RecipeLive.Show do
   end
 
   defp apply_action(socket, :cook, _params) do
+    recipe = socket.assigns.recipe
+    servings = recipe.servings || 1
+
     socket
     |> assign(:page_title, "Cook Recipe")
+    |> assign(:cook_servings, servings)
+    |> assign(:availability, Recipes.check_availability(recipe, servings))
   end
 
   @impl true
@@ -105,6 +110,39 @@ defmodule FeedMeWeb.RecipeLive.Show do
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Something went wrong")}
     end
+  end
+
+  def handle_event("update_cook_servings", %{"servings" => servings_str}, socket) do
+    case Integer.parse(servings_str) do
+      {servings, _} when servings > 0 ->
+        availability = Recipes.check_availability(socket.assigns.recipe, servings)
+        {:noreply, assign(socket, cook_servings: servings, availability: availability)}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("cook_add_missing", _params, socket) do
+    user = socket.assigns.current_scope.user
+
+    {:ok, %{added: added, already_have: have}} =
+      Recipes.add_missing_to_list(socket.assigns.recipe, socket.assigns.household.id, user)
+
+    message =
+      cond do
+        added == 0 && have > 0 -> "You already have all the ingredients!"
+        added > 0 && have > 0 -> "Added #{added} items to shopping list (you have #{have})"
+        added > 0 -> "Added #{added} items to shopping list"
+        true -> "No ingredients to add"
+      end
+
+    availability = Recipes.check_availability(socket.assigns.recipe, socket.assigns.cook_servings)
+
+    {:noreply,
+     socket
+     |> assign(:availability, availability)
+     |> put_flash(:info, message)}
   end
 
   def handle_event("toggle_photo_actions", _params, socket) do
@@ -320,7 +358,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
             <.icon name="hero-shopping-cart" class="size-5" />
           </button>
           <.link patch={~p"/households/#{@household.id}/recipes/#{@recipe.id}/cook"}>
-            <.button>Cook It</.button>
+            <.button>I Cooked This</.button>
           </.link>
           <.link patch={~p"/households/#{@household.id}/recipes/#{@recipe.id}/edit"}>
             <.button>Edit</.button>
@@ -550,18 +588,81 @@ defmodule FeedMeWeb.RecipeLive.Show do
         on_cancel={JS.patch(~p"/households/#{@household.id}/recipes/#{@recipe.id}")}
       >
         <.header>
-          Cook {@recipe.title}
-          <:subtitle>This will update your pantry inventory</:subtitle>
+          I Cooked {@recipe.title}
+          <:subtitle>Update your pantry inventory</:subtitle>
         </.header>
 
-        <form phx-submit="cook_confirmed" class="mt-6 space-y-4">
-          <.input
+        <form phx-change="update_cook_servings" class="mt-4">
+          <label class="label text-sm font-semibold" for="cook-servings">Servings made</label>
+          <input
+            id="cook-servings"
             name="servings"
             type="number"
-            label="Servings made"
-            value={@recipe.servings || 1}
+            value={@cook_servings}
             min="1"
+            class="input input-bordered w-full"
           />
+        </form>
+
+        <% need_items = Enum.filter(@availability, &(&1.status == :need)) %>
+        <% have_items = Enum.filter(@availability, &(&1.status == :have)) %>
+        <% untracked_items = Enum.filter(@availability, &(&1.status == :untracked)) %>
+
+        <%= if need_items != [] do %>
+          <div class="mt-4">
+            <h4 class="text-sm font-semibold text-warning mb-2">
+              Need ({length(need_items)})
+            </h4>
+            <ul class="space-y-1">
+              <%= for item <- need_items do %>
+                <li class="flex justify-between text-sm py-1 px-2 bg-warning/10 rounded">
+                  <span>{item.ingredient.name}</span>
+                  <span class="text-warning">
+                    have {Decimal.round(item.have, 1)}, need {Decimal.round(item.need, 1)}
+                    {item.ingredient.unit}
+                  </span>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+
+        <%= if have_items != [] do %>
+          <div class="mt-4">
+            <h4 class="text-sm font-semibold text-success mb-2">
+              Ready ({length(have_items)})
+            </h4>
+            <ul class="space-y-1">
+              <%= for item <- have_items do %>
+                <li class="flex justify-between text-sm py-1 px-2 bg-success/10 rounded">
+                  <span>{item.ingredient.name}</span>
+                  <span class="text-success">
+                    {Decimal.round(item.have, 1)} / {Decimal.round(item.need, 1)}
+                    {item.ingredient.unit}
+                  </span>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+
+        <%= if untracked_items != [] do %>
+          <div class="mt-4">
+            <h4 class="text-sm font-semibold text-base-content/50 mb-2">
+              Not tracked ({length(untracked_items)})
+            </h4>
+            <ul class="space-y-1">
+              <%= for item <- untracked_items do %>
+                <li class="text-sm py-1 px-2 text-base-content/50">
+                  {item.ingredient.name}
+                </li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+
+        <form phx-submit="cook_confirmed" class="mt-6 space-y-4">
+          <input type="hidden" name="servings" value={@cook_servings} />
           <.input
             name="rating"
             type="select"
@@ -582,13 +683,18 @@ defmodule FeedMeWeb.RecipeLive.Show do
             placeholder="How did it turn out?"
           />
           <div class="flex gap-2 justify-end">
-            <.link
-              patch={~p"/households/#{@household.id}/recipes/#{@recipe.id}"}
-              class="btn btn-ghost"
-            >
-              Cancel
-            </.link>
-            <.button type="submit" variant="primary">I Cooked It!</.button>
+            <%= if need_items != [] do %>
+              <button
+                type="button"
+                phx-click="cook_add_missing"
+                class="btn btn-outline btn-warning"
+              >
+                Add Missing to List
+              </button>
+            <% end %>
+            <.button type="submit" variant="primary">
+              Cooked It!
+            </.button>
           </div>
         </form>
       </.modal>
