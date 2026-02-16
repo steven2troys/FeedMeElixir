@@ -455,6 +455,9 @@ defmodule FeedMe.AI do
             metadata: %{usage: final_response.usage}
           })
 
+        # Update conversation title if first message
+        maybe_update_title(conversation, messages)
+
         {:ok, assistant_msg}
 
       error ->
