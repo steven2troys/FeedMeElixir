@@ -310,6 +310,42 @@ defmodule FeedMe.Recipes do
   end
 
   @doc """
+  Returns ingredient availability for a recipe at a given serving count.
+
+  Each item in the returned list is a map with:
+  - `:ingredient` - the Ingredient struct
+  - `:have` - Decimal quantity in pantry (or nil if untracked)
+  - `:need` - Decimal quantity needed (scaled by servings)
+  - `:status` - `:have`, `:need`, or `:untracked`
+  """
+  def check_availability(%Recipe{} = recipe, servings) do
+    multiplier =
+      if recipe.servings && recipe.servings > 0,
+        do: Decimal.div(Decimal.new(servings), Decimal.new(recipe.servings)),
+        else: Decimal.new(1)
+
+    Enum.map(recipe.ingredients, fn ingredient ->
+      needed =
+        if ingredient.quantity,
+          do: Decimal.mult(ingredient.quantity, multiplier),
+          else: Decimal.new(1)
+
+      cond do
+        is_nil(ingredient.pantry_item_id) ->
+          %{ingredient: ingredient, have: nil, need: needed, status: :untracked}
+
+        true ->
+          have = (ingredient.pantry_item && ingredient.pantry_item.quantity) || Decimal.new(0)
+
+          status =
+            if Decimal.compare(have, needed) != :lt, do: :have, else: :need
+
+          %{ingredient: ingredient, have: have, need: needed, status: status}
+      end
+    end)
+  end
+
+  @doc """
   Creates a cooking log.
   """
   def create_cooking_log(attrs) do

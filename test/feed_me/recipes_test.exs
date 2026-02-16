@@ -277,6 +277,94 @@ defmodule FeedMe.RecipesTest do
     end
   end
 
+  describe "check_availability" do
+    setup do
+      user = AccountsFixtures.user_fixture()
+      household = HouseholdsFixtures.household_fixture(%{}, user)
+      recipe = RecipesFixtures.recipe_fixture(household, %{servings: 4})
+      %{user: user, household: household, recipe: recipe}
+    end
+
+    test "returns :have when pantry has enough", %{recipe: recipe, household: household} do
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Chicken", quantity: Decimal.new("10")})
+
+      RecipesFixtures.ingredient_fixture(recipe, %{
+        name: "Chicken",
+        pantry_item_id: pantry_item.id,
+        quantity: Decimal.new("2")
+      })
+
+      recipe = Recipes.get_recipe(recipe.id, household.id)
+      availability = Recipes.check_availability(recipe, 4)
+
+      assert length(availability) == 1
+      [item] = availability
+      assert item.status == :have
+      assert Decimal.equal?(item.have, Decimal.new("10"))
+      assert Decimal.equal?(item.need, Decimal.new("2"))
+    end
+
+    test "returns :need when pantry is insufficient", %{recipe: recipe, household: household} do
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Butter", quantity: Decimal.new("1")})
+
+      RecipesFixtures.ingredient_fixture(recipe, %{
+        name: "Butter",
+        pantry_item_id: pantry_item.id,
+        quantity: Decimal.new("4")
+      })
+
+      recipe = Recipes.get_recipe(recipe.id, household.id)
+      availability = Recipes.check_availability(recipe, 4)
+
+      [item] = availability
+      assert item.status == :need
+      assert Decimal.equal?(item.have, Decimal.new("1"))
+      assert Decimal.equal?(item.need, Decimal.new("4"))
+    end
+
+    test "scales needed quantity by servings", %{recipe: recipe, household: household} do
+      pantry_item =
+        PantryFixtures.item_fixture(household, %{name: "Rice", quantity: Decimal.new("5")})
+
+      # Recipe serves 4, ingredient is 4 cups (1 cup per serving)
+      RecipesFixtures.ingredient_fixture(recipe, %{
+        name: "Rice",
+        pantry_item_id: pantry_item.id,
+        quantity: Decimal.new("4")
+      })
+
+      recipe = Recipes.get_recipe(recipe.id, household.id)
+
+      # 2 servings = need 2 cups, have 5 → :have
+      availability = Recipes.check_availability(recipe, 2)
+      [item] = availability
+      assert item.status == :have
+      assert Decimal.equal?(item.need, Decimal.new("2"))
+
+      # 8 servings = need 8 cups, have 5 → :need
+      availability = Recipes.check_availability(recipe, 8)
+      [item] = availability
+      assert item.status == :need
+      assert Decimal.equal?(item.need, Decimal.new("8"))
+    end
+
+    test "marks unlinked ingredients as :untracked", %{recipe: recipe, household: household} do
+      RecipesFixtures.ingredient_fixture(recipe, %{
+        name: "Salt",
+        quantity: Decimal.new("1")
+      })
+
+      recipe = Recipes.get_recipe(recipe.id, household.id)
+      availability = Recipes.check_availability(recipe, 4)
+
+      [item] = availability
+      assert item.status == :untracked
+      assert item.ingredient.name == "Salt"
+    end
+  end
+
   describe "add_missing_to_list" do
     setup do
       user = AccountsFixtures.user_fixture()
