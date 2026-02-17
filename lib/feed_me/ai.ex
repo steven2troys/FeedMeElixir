@@ -505,6 +505,8 @@ defmodule FeedMe.AI do
     - When adding items to the pantry, always provide shelf_life_days to estimate how long the item lasts (e.g., bananas=5, bread=7, milk=10, eggs=21, fresh meat=2, canned goods=730). The system will calculate the exact expiration date automatically.
     - When adding pantry items or recipes, always include estimated nutritional information (calories, protein, carbs, fat at minimum).
     - When saving a recipe with add_recipe, you MUST include the COMPLETE ingredient list with name, quantity, and unit for every ingredient. Never omit ingredients — extract every single one from the source.
+    - When the user asks you to find a recipe, look something up, or asks about any food/cooking topic, ALWAYS use the search_web tool. Do not rely on your training data for recipes — search the web to get accurate, up-to-date results. Prefer searching over answering from memory.
+    - When presenting web search results, ALWAYS include the source URLs/citations that came back with the search. Show them as links so the user can visit the original source.
     - Consider dietary restrictions and allergies when suggesting recipes
     - If you're unsure about something, ask for clarification
 

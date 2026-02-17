@@ -207,7 +207,7 @@ defmodule FeedMe.AI.Tools do
       function: %{
         name: "search_web",
         description:
-          "Search the web for recipes, cooking techniques, ingredient substitutions, food information, or any other culinary knowledge not in the household's recipe book",
+          "Search the web for recipes, cooking techniques, ingredient substitutions, food information, or any other culinary knowledge. ALWAYS use this tool when the user asks you to find, suggest, or look up a recipe — do not answer from memory. Results include source citations that you MUST pass through to the user.",
         parameters: %{
           type: "object",
           properties: %{
@@ -603,7 +603,7 @@ defmodule FeedMe.AI.Tools do
             %{
               role: :system,
               content:
-                "You are a helpful culinary assistant. Provide concise, accurate information about recipes, cooking techniques, and food. When returning recipes, ALWAYS include a complete ingredient list with exact quantities and units, followed by step-by-step instructions. Never omit ingredients. Keep responses focused and practical."
+                "You are a helpful culinary assistant. Provide concise, accurate information about recipes, cooking techniques, and food. When returning recipes, ALWAYS include a complete ingredient list with exact quantities and units, followed by step-by-step instructions. Never omit ingredients. Include inline citation numbers (e.g. [1], [2]) referencing your sources throughout the response."
             },
             %{
               role: :user,
