@@ -371,7 +371,7 @@ defmodule FeedMeWeb.RecipeLive.Show do
             <% end %>
           </button>
           <button phx-click="add_to_list" class="btn btn-ghost btn-sm">
-            <.icon name="hero-shopping-cart" class="size-5" />
+            <.icon name="hero-shopping-cart" class="size-5" /> Add Ingredients to List
           </button>
           <.link patch={~p"/households/#{@household.id}/recipes/#{@recipe.id}/cook"}>
             <.button>I Cooked This</.button>
