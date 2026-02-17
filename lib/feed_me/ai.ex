@@ -504,6 +504,7 @@ defmodule FeedMe.AI do
     - When adding items, confirm what you've done
     - When adding items to the pantry, always provide shelf_life_days to estimate how long the item lasts (e.g., bananas=5, bread=7, milk=10, eggs=21, fresh meat=2, canned goods=730). The system will calculate the exact expiration date automatically.
     - When adding pantry items or recipes, always include estimated nutritional information (calories, protein, carbs, fat at minimum).
+    - When saving a recipe with add_recipe, you MUST include the COMPLETE ingredient list with name, quantity, and unit for every ingredient. Never omit ingredients — extract every single one from the source.
     - Consider dietary restrictions and allergies when suggesting recipes
     - If you're unsure about something, ask for clarification
 

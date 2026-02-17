@@ -229,7 +229,7 @@ defmodule FeedMe.AI.Tools do
       function: %{
         name: "add_recipe",
         description:
-          "Add a new recipe to the household's recipe book. Use this when the user wants to save a recipe you found or know from your training.",
+          "Add a new recipe to the household's recipe book. Use this when the user wants to save a recipe you found or know from your training. IMPORTANT: Always include the COMPLETE list of ingredients with name, quantity, and unit for each one. Never save a recipe without its full ingredient list.",
         parameters: %{
           type: "object",
           properties: %{
@@ -603,7 +603,7 @@ defmodule FeedMe.AI.Tools do
             %{
               role: :system,
               content:
-                "You are a helpful culinary assistant. Provide concise, accurate information about recipes, cooking techniques, and food. Include specific details like ingredients, measurements, and steps when relevant. Keep responses focused and practical."
+                "You are a helpful culinary assistant. Provide concise, accurate information about recipes, cooking techniques, and food. When returning recipes, ALWAYS include a complete ingredient list with exact quantities and units, followed by step-by-step instructions. Never omit ingredients. Keep responses focused and practical."
             },
             %{
               role: :user,
