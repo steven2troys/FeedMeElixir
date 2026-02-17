@@ -346,7 +346,7 @@ defmodule FeedMe.AI do
             })
 
           # Update conversation title if first message
-          maybe_update_title(conversation, messages)
+          maybe_update_title(conversation, messages, api_key)
 
           {:ok, assistant_msg}
         end
@@ -391,7 +391,7 @@ defmodule FeedMe.AI do
 
     # Handle any tool calls that came through
     # (Tool calls in streaming are more complex, simplified here)
-    maybe_update_title(conversation, messages)
+    maybe_update_title(conversation, messages, api_key)
 
     :ok
   end
@@ -456,7 +456,7 @@ defmodule FeedMe.AI do
           })
 
         # Update conversation title if first message
-        maybe_update_title(conversation, messages)
+        maybe_update_title(conversation, messages, api_key)
 
         {:ok, assistant_msg}
 
@@ -511,22 +511,36 @@ defmodule FeedMe.AI do
     """
   end
 
-  defp maybe_update_title(conversation, messages) do
-    # Only update title if this is a new conversation (2 messages: system + first user)
+  defp maybe_update_title(conversation, messages, api_key) do
     if conversation.title == nil and length(messages) <= 3 do
-      # Get the first user message
       user_msg = Enum.find(messages, fn m -> m.role == :user end)
 
       if user_msg do
-        # Generate a short title from the message
-        title =
-          user_msg.content
-          |> String.slice(0, 50)
-          |> String.trim()
-
-        title = if String.length(user_msg.content) > 50, do: title <> "...", else: title
+        title = generate_title(api_key, user_msg.content)
         update_conversation(conversation, %{title: title})
       end
+    end
+  end
+
+  defp generate_title(api_key, user_message) do
+    title_messages = [
+      %{
+        role: :system,
+        content:
+          "Generate a short 3-6 word title summarizing this conversation topic. " <>
+            "Reply with ONLY the title text, no quotes or extra punctuation."
+      },
+      %{role: :user, content: user_message}
+    ]
+
+    case OpenRouter.chat(api_key, title_messages, model: "google/gemini-2.0-flash-001") do
+      {:ok, %{content: content}} when is_binary(content) ->
+        content |> String.trim() |> String.trim("\"") |> String.slice(0, 60)
+
+      _ ->
+        # Fallback: truncate the user message
+        truncated = user_message |> String.slice(0, 50) |> String.trim()
+        if String.length(user_message) > 50, do: truncated <> "...", else: truncated
     end
   end
 
