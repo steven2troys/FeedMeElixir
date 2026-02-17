@@ -362,32 +362,33 @@ defmodule FeedMeWeb.RecipeLive.Show do
             <% end %>
           </div>
         </:subtitle>
-        <:actions>
-          <button phx-click="toggle_favorite" class="btn btn-ghost btn-sm">
-            <%= if @recipe.is_favorite do %>
-              <.icon name="hero-heart-solid" class="size-5 text-error" />
-            <% else %>
-              <.icon name="hero-heart" class="size-5" />
-            <% end %>
-          </button>
-          <button phx-click="add_to_list" class="btn btn-ghost btn-sm">
-            <.icon name="hero-shopping-cart" class="size-5" /> Add Ingredients to List
-          </button>
-          <.link patch={~p"/households/#{@household.id}/recipes/#{@recipe.id}/cook"}>
-            <.button>I Cooked This</.button>
-          </.link>
-          <.link patch={~p"/households/#{@household.id}/recipes/#{@recipe.id}/edit"}>
-            <.button>Edit</.button>
-          </.link>
-          <button
-            phx-click="delete_recipe"
-            data-confirm={"Delete \"#{@recipe.title}\"? This cannot be undone."}
-            class="btn btn-ghost btn-sm text-error"
-          >
-            <.icon name="hero-trash" class="size-5" />
-          </button>
-        </:actions>
       </.header>
+
+      <div class="flex flex-wrap gap-2 pb-4">
+        <button phx-click="toggle_favorite" class="btn btn-ghost btn-sm">
+          <%= if @recipe.is_favorite do %>
+            <.icon name="hero-heart-solid" class="size-5 text-error" />
+          <% else %>
+            <.icon name="hero-heart" class="size-5" />
+          <% end %>
+        </button>
+        <button phx-click="add_to_list" class="btn btn-ghost btn-sm">
+          <.icon name="hero-shopping-cart" class="size-5" /> Add Ingredients to List
+        </button>
+        <.link patch={~p"/households/#{@household.id}/recipes/#{@recipe.id}/cook"}>
+          <.button class="btn-sm">I Cooked This</.button>
+        </.link>
+        <.link patch={~p"/households/#{@household.id}/recipes/#{@recipe.id}/edit"}>
+          <.button class="btn-sm">Edit</.button>
+        </.link>
+        <button
+          phx-click="delete_recipe"
+          data-confirm={"Delete \"#{@recipe.title}\"? This cannot be undone."}
+          class="btn btn-ghost btn-sm text-error"
+        >
+          <.icon name="hero-trash" class="size-5" />
+        </button>
+      </div>
 
       <%!-- Photo carousel --%>
       <%= if @recipe.photos != [] do %>
